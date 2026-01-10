@@ -24,36 +24,20 @@ SENSOR_TYPES = {
     "tempcwu": ["Température ECS", UnitOfTemperature.CELSIUS, "mdi:water-boiler", "temperature"],
     
     # BALLON TAMPON (BUFFER)
-    "tempbuforup": ["Ballon Tampon (Haut)", UnitOfTemperature.CELSIUS, "mdi:tank", "temperature"],
     "tempbufordown": ["Ballon Tampon (Bas)", UnitOfTemperature.CELSIUS, "mdi:tank", "temperature"],
     "buforsetpoint": ["Consigne Ballon Tampon", UnitOfTemperature.CELSIUS, "mdi:target", "temperature"],
 
     # CIRCUITS MÉLANGEURS (TEMPÉRATURES)
     "tempcircuit2": ["Température Circuit 2", UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "tempcircuit3": ["Température Circuit 3", UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "tempcircuit4": ["Température Circuit 4", UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "tempcircuit5": ["Température Circuit 5", UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "tempcircuit6": ["Température Circuit 6", UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "tempcircuit7": ["Température Circuit 7", UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
 
     # VANNES MÉLANGEUSES (POSITION %)
     "mixer2valveposition": ["Vanne 2 Ouverture", PERCENTAGE, "mdi:valve", None],
-    "mixer3valveposition": ["Vanne 3 Ouverture", PERCENTAGE, "mdi:valve", None],
-    "mixer4valveposition": ["Vanne 4 Ouverture", PERCENTAGE, "mdi:valve", None],
-    "mixer5valveposition": ["Vanne 5 Ouverture", PERCENTAGE, "mdi:valve", None],
-    "mixer6valveposition": ["Vanne 6 Ouverture", PERCENTAGE, "mdi:valve", None],
-    "mixer7valveposition": ["Vanne 7 Ouverture", PERCENTAGE, "mdi:valve", None],
 }
 
 # --- CONFIGURATION DES THERMOSTATS (Climate) ---
 # Format: "Nom": ["slug_temp_actuelle", "slug_consigne"]
 CLIMATE_TYPES = {
     "Circuit 2": ["tempcircuit2", "circuit2_romtempset"],
-    "Circuit 3": ["tempcircuit3", "circuit3_romtempset"],
-    "Circuit 4": ["tempcircuit4", "circuit4_romtempset"],
-    "Circuit 5": ["tempcircuit5", "circuit5_romtempset"],
-    "Circuit 6": ["tempcircuit6", "circuit6_romtempset"],
-    "Circuit 7": ["tempcircuit7", "circuit7_romtempset"],
 }
 
 # --- CONFIGURATION DES NOMBRES (Consignes simples) ---
