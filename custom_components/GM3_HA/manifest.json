@@ -3,9 +3,9 @@
   "name": "Plum EcoMAX",
   "codeowners": ["@lachand"],
   "config_flow": true,
-  "documentation": "https://github.com/votre_repo",
+  "documentation": "https://github.com/lachand/GM3_HA",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/votre_repo/issues",
+  "issue_tracker": "https://github.com/lachand/GM3_HA/issues",
   "requirements": [],
-  "version": "0.0.2"
+  "version": "0.0.3"
 }
