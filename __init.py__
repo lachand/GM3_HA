@@ -10,7 +10,7 @@ from .plum_device import PlumDevice
 _LOGGER = logging.getLogger(__name__)
 
 # On déclare les types d'entités qu'on va créer
-PLATFORMS = ["sensor", "climate", "number"]
+PLATFORMS = ["sensor", "climate", "number", "water_heater"]
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Configuration via YAML (obsolète mais supporté)."""
