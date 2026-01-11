@@ -9,7 +9,7 @@ from .coordinator import PlumDataUpdateCoordinator
 from .plum_device import PlumDevice
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["sensor", "climate", "number"]
+PLATFORMS = ["climate", "sensor", "number", "switch", "select"]
 
 async def async_setup(hass: HomeAssistant, config: dict):
     return True

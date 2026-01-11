@@ -134,6 +134,66 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
 
         # C. Success
         return True, raw_val
+        
 
-    # ... (rest of methods: async_set_value, _detect_available_parameters keep unchanged)
-    # Copier ici les méthodes async_set_value et _detect_available_parameters de la réponse précédente
+    async def async_set_value(self, slug: str, value: Any) -> bool:
+        """
+        @brief Writes a value to the device and updates the local cache immediately.
+        @details This implements the 'Write-Through' pattern. It allows the UI to 
+        update instantly without waiting for the next poll interval (Optimistic UI).
+        
+        @param slug The parameter identifier.
+        @param value The value to write.
+        @return bool True if the write was successful.
+        """
+        # 1. Perform the physical write
+        success = await self.device.set_value(slug, value)
+        
+        if success:
+            # 2. Update cache immediately (Optimistic update)
+            async with self._cache_lock:
+                self._cache[slug] = value
+                self._timestamps[slug] = time.time()
+            
+            # 3. Notify Home Assistant that data has changed
+            # This forces entities to refresh their state from our cache
+            self.async_set_updated_data(self._cache)
+            _LOGGER.info(f"✅ Value {slug}={value} set and cache updated.")
+        else:
+            _LOGGER.error(f"❌ Failed to set {slug}={value}")
+            
+        return success
+
+    async def _detect_available_parameters(self):
+        """
+        @brief Initial scan to filter out unsupported parameters.
+        @details Checks existence in JSON map and attempts a physical read.
+        """
+        _LOGGER.info("🔍 Initial scan of available parameters...")
+        
+        targets = []
+        
+        # 1. Sensors
+        targets.extend(list(SENSOR_TYPES.keys()))
+        
+        # 2. Climates (Temperature + Target)
+        for conf in CLIMATE_TYPES.values():
+            targets.extend(conf) 
+            
+        # 3. Numbers
+        targets.extend(list(NUMBER_TYPES.keys()))
+        
+        valid_slugs = []
+        for slug in targets:
+            if slug not in self.device.params_map:
+                continue
+                
+            val = await self.device.get_value(slug, retries=2)
+            
+            # Filter invalid values (999.0 often indicates a disconnected probe)
+            if val is not None and val != 999.0:
+                 valid_slugs.append(slug)
+                 _LOGGER.debug(f"Detected parameter: {slug}")
+        
+        self.available_slugs = list(set(valid_slugs))
+        _LOGGER.info(f"✅ {len(self.available_slugs)} active parameters retained.")
