@@ -472,7 +472,9 @@
         "type": "SHORT_INT",
         "unit": "",
         "exponent": 0,
-        "name_orig": "BuforsetPoint"
+        "name_orig": "BuforsetPoint",
+        "min": 20,
+        "max" : 90
     },
     "buforsettempdownhist": {
         "id": 188,

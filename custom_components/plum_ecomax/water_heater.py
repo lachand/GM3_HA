@@ -49,7 +49,7 @@ async def async_setup_entry(
         if has_current and has_target:
             _LOGGER.info(f"✅ Création du Water Heater '{name}' (Paramètres trouvés).")
             entities.append(
-                PlumEconetWaterHeater(
+                PlumEcomaxWaterHeater(
                     coordinator, 
                     "Eau Chaude Sanitaire", 
                     current_temp, target_temp, min_temp, max_temp, mode_slug
@@ -69,8 +69,8 @@ async def async_setup_entry(
 
 class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     """
-    @class PlumEconetWaterHeater
-    @brief Représente le ballon d'Eau Chaude Sanitaire (ECS).
+    @class PlumEcomaxWaterHeaterReprésente
+    @brief  le ballon d'Eau Chaude Sanitaire (ECS).
     """
 
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
