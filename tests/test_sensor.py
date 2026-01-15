@@ -31,7 +31,8 @@ def test_sensor_nan_protection(mock_coordinator, mock_entry):
     slug = "temp_test"
     # Config: Unit, Icon, DeviceClass
     config = ("°C", "mdi:thermometer", SensorDeviceClass.TEMPERATURE)
-    
+
+    mock_coordinator.last_update_success = True
     sensor = PlumEcomaxSensor(mock_coordinator, mock_entry, slug, config)
     
     # 1. Test Valid Value
