@@ -15,8 +15,11 @@ def climate_entity():
     coordinator.async_set_value = AsyncMock(return_value=True)
     
     # Slugs: Current, ComfortTarget, EcoTarget, Mode
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "12345"
+    
     entity = PlumEcomaxClimate(
-        coordinator, "Test Climate", 
+        coordinator, mock_entry, 
         "temp_curr", "target_comfort", "target_eco", "mode_slug"
     )
     return entity
