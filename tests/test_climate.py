@@ -1,7 +1,7 @@
 """Unit tests for Climate entities."""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from custom_components.plum_ecomax.climate import PlumEconetClimate
+from custom_components.plum_ecomax.climate import PlumEcomaxClimate
 from custom_components.plum_ecomax.const import (
     PRESET_COMFORT, PRESET_ECO, PRESET_AWAY,
     HVAC_MODE_HEAT, HVAC_MODE_AUTO, HVAC_MODE_OFF
@@ -15,7 +15,7 @@ def climate_entity():
     coordinator.async_set_value = AsyncMock(return_value=True)
     
     # Slugs: Current, ComfortTarget, EcoTarget, Mode
-    entity = PlumEconetClimate(
+    entity = PlumEcomaxClimate(
         coordinator, "Test Climate", 
         "temp_curr", "target_comfort", "target_eco", "mode_slug"
     )
