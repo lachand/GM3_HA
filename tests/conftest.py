@@ -1,19 +1,19 @@
 """Global fixtures for Plum EcoMAX integration tests."""
-import pytest
-import sys
 import os
+import sys
+import pytest
 
-# This adds the root folder to the Python path, allowing imports from custom_components
+# CRITICAL: This adds the root directory to the Python path.
+# It allows tests to do: "from custom_components.plum_ecomax import ..."
 sys.path.append(os.getcwd())
 
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations):
-    """
-    @brief Automatically enables loading of custom integrations.
-    @details This fixture comes from 'pytest-homeassistant-custom-component'.
-    It is mandatory to allow Home Assistant logic to find your folder 'plum_ecomax'.
-    """
-    yield
+# We removed 'auto_enable_custom_integrations' because we are using Mocks.
+# We don't need to load the full Home Assistant component logic for unit tests.
 
-# You can add global mocks here if needed later
-# Example: mocking the network connection for all tests
+@pytest.fixture
+def hass():
+    """Mock the Home Assistant object for easier testing."""
+    from unittest.mock import MagicMock
+    hass = MagicMock()
+    hass.data = {}
+    return hass
