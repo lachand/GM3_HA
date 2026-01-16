@@ -1,28 +1,37 @@
-name: Documentation
+name: Documentation MkDocs
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
     paths:
-      - 'custom_components/**/*.py'
-      - 'Doxyfile'
+      - 'custom_components/**/*.py' # Si le code change
+      - 'docs/**'                   # Si le texte change
+      - 'mkdocs.yml'                # Si la config change
+
+permissions:
+  contents: write
 
 jobs:
-  generate-docs:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install Doxygen
-        run: sudo apt-get install -y doxygen graphviz
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
 
-      - name: Generate Documentation
-        run: doxygen Doxyfile
+      - name: Install dependencies
+        run: |
+          pip install mkdocs-material mkdocstrings[python]
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/html # Must match OUTPUT in Doxyfile
+        run: mkdocs gh-deploy --force
