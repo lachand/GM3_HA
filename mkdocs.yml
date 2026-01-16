@@ -1,0 +1,49 @@
+site_name: Plum EcoMAX Documentation
+site_url: https://lachand.github.io/plum_ecomax/
+repo_url: https://github.com/lachand/plum_ecomax
+repo_name: lachand/plum_ecomax
+
+theme:
+  name: material
+  language: fr
+  palette: 
+    # Mode Sombre par défaut (c'est plus classe)
+    - scheme: slate
+      primary: teal
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Passer au mode clair
+    - scheme: default
+      primary: teal
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Passer au mode sombre
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          # IMPORTANT : On dit à MkDocs où chercher le code source
+          paths: [custom_components]
+          options:
+            show_source: true
+            show_root_heading: true
+
+nav:
+  - Accueil: index.md
+  - Référence API:
+      - Coordinateur: reference/coordinator.md
+      - Climate: reference/climate.md
+      - Sensor: reference/sensor.md
+      - Water Heater: reference/water_heater.md
+      - Calendar: reference/calendar.md
+      - Switch: reference/switch.md
+      - Number: reference/number.md
+      - Select: reference/select.md

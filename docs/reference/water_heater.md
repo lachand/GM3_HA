@@ -1,0 +1,1 @@
+::: plum_ecomax.water_heater
