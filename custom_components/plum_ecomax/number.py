@@ -47,7 +47,8 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
             entry: The config entry.
             slug: The parameter identifier string.
             config: A tuple containing (min, max, step, icon).
-        """super().__init__(coordinator)
+        """
+        super().__init__(coordinator)
         self._slug = slug
         
         # --- CHANGEMENT INDEX ---
