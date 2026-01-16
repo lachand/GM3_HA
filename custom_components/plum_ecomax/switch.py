@@ -1,6 +1,13 @@
+"""Switch platform for the Plum EcoMAX integration.
+
+This module handles binary switch entities. These are typically used for
+boolean parameters or simple on/off commands on the boiler, such as
+forcing the Domestic Hot Water (DHW) heating cycle.
+"""
 import logging
 from typing import Any
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -11,11 +18,18 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: Any,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """
-    @brief Sets up Plum switch entities.
+    """Sets up Plum switch entities.
+
+    Iterates through the `SWITCH_TYPES` configuration and creates an entity
+    if the corresponding parameter exists on the device.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The configuration entry.
+        async_add_entities: Callback to add entities to Home Assistant.
     """
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
@@ -30,17 +44,20 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
-    """
-    @class PlumEconetSwitch
-    @brief Representation of a binary switch (e.g., Force DHW Loading).
+    """Representation of a binary switch.
+
+    This entity represents a writable boolean parameter on the device.
+    It uses the data coordinator to read the current state and write
+    changes back to the device (e.g., setting a value of 1 for On and 0 for Off).
     """
 
     def __init__(self, coordinator, slug: str, name: str):
-        """
-        @brief Constructor.
-        @param coordinator The data coordinator.
-        @param slug The parameter slug (e.g., 'hdwstartoneloading').
-        @param name The friendly name.
+        """Initializes the switch entity.
+
+        Args:
+            coordinator: The data update coordinator.
+            slug: The parameter identifier string.
+            name: The friendly name of the switch.
         """
         super().__init__(coordinator)
         self._slug = slug
@@ -50,8 +67,10 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        """
-        @brief Return true if the switch is on (value == 1).
+        """Checks if the switch is currently on.
+
+        Returns:
+            bool: True if the parameter value is 1, False otherwise.
         """
         val = self.coordinator.data.get(self._slug)
         try:
@@ -60,17 +79,25 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
             return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """
-        @brief Turn the switch on.
-        @details Writes '1' to the device and updates cache immediately.
+        """Turns the switch on.
+
+        Writes '1' to the corresponding device parameter and updates the
+        local cache immediately.
+
+        Args:
+            **kwargs: Keyword arguments (unused).
         """
         _LOGGER.info(f"Turning ON {self._attr_name} ({self._slug})")
         await self.coordinator.async_set_value(self._slug, 1)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """
-        @brief Turn the switch off.
-        @details Writes '0' to the device and updates cache immediately.
+        """Turns the switch off.
+
+        Writes '0' to the corresponding device parameter and updates the
+        local cache immediately.
+
+        Args:
+            **kwargs: Keyword arguments (unused).
         """
         _LOGGER.info(f"Turning OFF {self._attr_name} ({self._slug})")
         await self.coordinator.async_set_value(self._slug, 0)

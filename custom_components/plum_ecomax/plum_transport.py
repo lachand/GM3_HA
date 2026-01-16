@@ -1,13 +1,34 @@
+"""Asynchronous TCP Transport for Plum EcoMAX.
+
+This module implements the low-level network transport layer using Python's
+asyncio. It is responsible for:
+
+* Establishing and managing the TCP connection.
+* Buffering incoming bytes to handle TCP fragmentation.
+* Parsing the binary stream to extract valid protocol frames (Start Byte, Length, CRC, Stop Byte).
+"""
 import asyncio
 import struct
 import logging
 from typing import Optional, List
-from plum_protocol import BoilerFrame, START_BYTE, STOP_BYTE, compute_crc16
+from .plum_utils import BoilerFrame, START_BYTE, STOP_BYTE, compute_crc16
 
 logger = logging.getLogger(__name__)
 
 class AsyncPlumTransport:
+    """Manages the asynchronous TCP connection to the ecomax module.
+
+    This class handles the raw byte stream, ensuring that fragmented packets
+    are reassembled correctly and that invalid data (noise) is discarded.
+    """
+
     def __init__(self, host: str, port: int):
+        """Initializes the transport layer.
+
+        Args:
+            host: The IP address or hostname of the ecoNET module.
+            port: The TCP port (usually 8899).
+        """
         self.host = host
         self.port = port
         self.reader: Optional[asyncio.StreamReader] = None
@@ -15,15 +36,31 @@ class AsyncPlumTransport:
         self._buffer = bytearray()
 
     async def connect(self):
+        """Establishes the TCP connection.
+
+        Raises:
+            OSError: If the connection fails (timeout, refused, etc.).
+        """
         logger.debug(f"Connecting to {self.host}:{self.port}")
         self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
 
     async def close(self):
+        """Closes the TCP connection and clears resources."""
         if self.writer:
             self.writer.close()
             await self.writer.wait_closed()
+        self.reader = None
+        self.writer = None
 
     async def send_frame(self, frame: BoilerFrame):
+        """Serializes and sends a frame over the network.
+
+        Args:
+            frame: The BoilerFrame object to send.
+
+        Raises:
+            ConnectionError: If the socket is not connected.
+        """
         if not self.writer:
             raise ConnectionError("Not connected")
 
@@ -37,7 +74,23 @@ class AsyncPlumTransport:
         await self.writer.drain()
 
     async def read_frame(self, timeout: float = 2.0) -> Optional[BoilerFrame]:
-        """Lit le flux jusqu'à obtenir une trame valide."""
+        """Reads the stream until a valid frame is found or timeout occurs.
+
+        This method handles TCP stream processing:
+        1.  It reads chunks of data into a persistent buffer.
+        2.  It scans for the START_BYTE (0x68).
+        3.  It parses the header to determine the expected frame length.
+        4.  It verifies the CRC and STOP_BYTE.
+
+        Args:
+            timeout: Maximum time to wait for a complete frame in seconds.
+
+        Returns:
+            Optional[BoilerFrame]: A valid frame object, or None if timeout/error occurs.
+
+        Raises:
+            ConnectionError: If the socket is not connected.
+        """
         if not self.reader:
             raise ConnectionError("Not connected")
 

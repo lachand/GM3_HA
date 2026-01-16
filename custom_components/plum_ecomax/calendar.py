@@ -18,19 +18,23 @@ async def async_setup_entry(
     entry: Any,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """
-    @brief Sets up Calendar entities for Circuits and DHW.
+    """Sets up Calendar entities for Circuits and DHW.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The config entry containing the configuration.
+        async_add_entities: Callback to add entities to Home Assistant.
     """
     coordinator = hass.data[DOMAIN][entry.entry_id]
     selected_circuits = entry.data.get(CONF_ACTIVE_CIRCUITS, [])
     entities = []
 
-    # 1. Calendriers des Circuits de Chauffage
+    # 1. Circuit's calendar
     for circuit_id in selected_circuits:
         if f"circuit{circuit_id}mondayam" in coordinator.device.params_map:
             entities.append(PlumEconetCalendar(coordinator, entry, "circuit", circuit_id))
 
-    # 2. Calendrier Eau Chaude Sanitaire (HDW)
+    # 2. HDW's calendar
     if "hdwmondayam" in coordinator.device.params_map:
         entities.append(PlumEconetCalendar(coordinator, entry, "hdw", 0))
 
@@ -38,16 +42,21 @@ async def async_setup_entry(
 
 
 class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
-    """
-    @class PlumEconetCalendar
-    @brief Converts Plum binary registers to HA calendar events.
-    @details Supports both Heating Circuits and DHW (HDW).
+    """Representation of a Plum EcoMAX Calendar.
+
+    This entity reads binary registers (AM/PM bitmasks) and converts them
+    into readable Home Assistant Calendar events. It supports both
+    heating circuits and domestic hot water (DHW).
     """
 
     def __init__(self, coordinator, entry, system_type: str, index: int):
-        """
-        @param system_type: 'circuit' or 'hdw'
-        @param index: Circuit ID (1..7) or 0 for HDW
+        """Initializes the calendar entity.
+
+        Args:
+            coordinator: The data update coordinator.
+            entry: The config entry.
+            system_type: The type of system ('circuit' or 'hdw').
+            index: The circuit index (1-7) or 0 for HDW.
         """
         super().__init__(coordinator)
         self._entry_id = entry.entry_id
@@ -64,13 +73,25 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
 
     @property
     def event(self) -> CalendarEvent | None:
+        """Returns the next upcoming event.
+
+        Returns:
+            CalendarEvent: The next event, or None if not implemented.
+        """
         return None
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime.datetime, end_date: datetime.datetime
     ) -> List[CalendarEvent]:
-        """
-        @brief Generates events based on the system type (Circuit/HDW).
+        """Generates events based on the system type.
+
+        Args:
+            hass: Home Assistant instance.
+            start_date: Start of the requested date range.
+            end_date: End of the requested date range.
+
+        Returns:
+            List[CalendarEvent]: A list of calendar events found within the range.
         """
         events = []
         current_day = start_date
@@ -85,7 +106,6 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
 
             suffix_am, suffix_pm = slugs
             
-            # Construction dynamique du slug selon le type
             if self._system_type == "circuit":
                 slug_am = f"circuit{self._index}{suffix_am}"
                 slug_pm = f"circuit{self._index}{suffix_pm}"
@@ -108,6 +128,16 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         return events
 
     def _decode_day(self, date_base: datetime.datetime, val_am: int, val_pm: int) -> List[CalendarEvent]:
+        """Decodes 48-bit binary schedule data for a single day.
+
+        Args:
+            date_base: The base date (00:00).
+            val_am: Integer value of the AM register (00:00-12:00).
+            val_pm: Integer value of the PM register (12:00-00:00).
+
+        Returns:
+            List[CalendarEvent]: List of events derived from the bitmask.
+        """
         events = []
         slots = []
         for i in range(24): slots.append((val_am >> i) & 1 == 1)
@@ -129,6 +159,17 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         return events
 
     def _create_event(self, date_base, start_slot, end_slot, is_active) -> CalendarEvent:
+        """Creates a Home Assistant CalendarEvent object.
+
+        Args:
+            date_base: The reference date.
+            start_slot: Start index (0-47, representing 30min slots).
+            end_slot: End index (0-48).
+            is_active: Boolean indicating if the slot is Active (Comfort) or Eco.
+
+        Returns:
+            CalendarEvent: The constructed event object.
+        """
         start_h = start_slot // 2
         start_m = (start_slot % 2) * 30
         end_h = end_slot // 2
@@ -143,10 +184,10 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
 
         if is_active:
             summary = "Actif"
-            description = "Chauffage/ECS Actif (Jour)"
+            description = "Heating/DHW comfort (Jour)"
         else:
             summary = "Éco"
-            description = "Chauffage/ECS Réduit (Nuit)"
+            description = "Heating/DHW eco (Nuit)"
 
         return CalendarEvent(
             summary=summary,
@@ -157,8 +198,10 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
     
     @property
     def device_info(self) -> DeviceInfo:
-        """
-        @brief Links the calendar to the correct device (Circuit X or HDW).
+        """Links the calendar to the correct device registry entry.
+
+        Returns:
+            DeviceInfo: Configuration to link this entity to a circuit or HDW device.
         """
         if self._system_type == "circuit":
             return DeviceInfo(
@@ -168,11 +211,10 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
                 via_device=(DOMAIN, self._entry_id),
             )
         else:
-            # Lien vers l'appareil Eau Chaude Sanitaire créé dans water_heater.py
             return DeviceInfo(
                 identifiers={(DOMAIN, "plum_hdw")},
-                name="Eau Chaude Sanitaire",
+                name="HDW",
                 manufacturer="Plum",
-                model="Gestionnaire ECS",
+                model="HDW Monitor",
                 via_device=(DOMAIN, self._entry_id),
             )

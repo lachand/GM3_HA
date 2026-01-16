@@ -1,3 +1,13 @@
+"""Data Update Coordinator for Plum EcoMAX.
+
+This module provides the central data management logic for the integration.
+It handles:
+
+* **Polling**: Periodic fetching of data from the device.
+* **Caching**: Storing values to reduce bus load.
+* **Validation**: Filtering out invalid values (outliers, error codes) before they reach Home Assistant.
+* **Write-Through**: Updating the local cache immediately after a successful write operation (Optimistic UI).
+"""
 import logging
 import asyncio
 import time
@@ -22,18 +32,20 @@ VALIDATION_RANGES = {
 }
 
 class PlumDataUpdateCoordinator(DataUpdateCoordinator):
-    """
-    @class PlumDataUpdateCoordinator
-    @brief Centralized data management with Robust Data Validation.
-    @details Implements caching, write-through strategies, and data sanitization
-    to prevent outliers from polluting the state machine.
+    """Centralized data management with Robust Data Validation.
+
+    This class extends Home Assistant's DataUpdateCoordinator to implement
+    specific strategies for the ecoNET protocol, including caching,
+    write-through updates, and aggressive data sanitization to prevent
+    outliers from polluting the state machine.
     """
 
     def __init__(self, hass, device):
-        """
-        @brief Constructor.
-        @param hass Home Assistant core instance.
-        @param device The low-level PlumDevice instance.
+        """Initializes the coordinator.
+
+        Args:
+            hass: The Home Assistant core instance.
+            device: The low-level PlumDevice instance used for communication.
         """
         self.device = device
         self.available_slugs = []
@@ -52,8 +64,14 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        """
-        @brief Main update loop with Validation and Fallback.
+        """Main update loop with Validation and Fallback.
+
+        This method is called by Home Assistant at the defined interval.
+        It iterates over known parameters, checks the cache freshness,
+        and fetches new data if necessary.
+
+        Returns:
+            dict: The dictionary of validated data key-value pairs.
         """
         data = {}
         now = time.time()
@@ -101,14 +119,20 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         return data
 
     def _validate_value(self, slug: str, raw_val: Any, cached_val: Any) -> Tuple[bool, Any]:
-        """
-        @brief Sanitizes the raw value based on JSON limits or Generic constraints.
-        @details
-        1. Checks for protocol errors (None, 999).
-        2. Checks specific limits defined in device_map.json (Priority).
-        3. Checks generic limits defined in VALIDATION_RANGES (Fallback).
-        
-        @return Tuple[bool, Any] (IsValid, SafeValue).
+        """Sanitizes the raw value based on JSON limits or Generic constraints.
+
+        The validation process follows a strict hierarchy:
+        1.  Protocol errors (None, 999) are rejected immediately.
+        2.  Specific limits defined in `device_map.json` (min/max) take priority.
+        3.  Generic limits defined in `VALIDATION_RANGES` are applied as a fallback.
+
+        Args:
+            slug: The parameter identifier.
+            raw_val: The raw value received from the device.
+            cached_val: The previous known good value (for delta checks).
+
+        Returns:
+            Tuple[bool, Any]: A tuple containing (IsValid, SafeValue).
         """
         # A. Basic protocol checks
         if raw_val is None:
@@ -158,14 +182,17 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         
 
     async def async_set_value(self, slug: str, value: Any) -> bool:
-        """
-        @brief Writes a value to the device and updates the local cache immediately.
-        @details This implements the 'Write-Through' pattern. It allows the UI to 
+        """Writes a value to the device and updates the local cache immediately.
+
+        This implements the 'Write-Through' pattern. It allows the UI to
         update instantly without waiting for the next poll interval (Optimistic UI).
-        
-        @param slug The parameter identifier.
-        @param value The value to write.
-        @return bool True if the write was successful.
+
+        Args:
+            slug: The parameter identifier.
+            value: The value to write.
+
+        Returns:
+            bool: True if the write was successful.
         """
         # 1. Perform the physical write
         success = await self.device.set_value(slug, value)
@@ -186,9 +213,11 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         return success
 
     async def _detect_available_parameters(self):
-        """
-        @brief Initial scan to filter out unsupported parameters.
-        @details Checks existence in JSON map and attempts a physical read.
+        """Initial scan to filter out unsupported parameters.
+
+        Iterates through all possible parameters defined in `const.py`,
+        checks if they exist in the device map, and attempts a physical read.
+        Only responding parameters are retained for future polling.
         """
         _LOGGER.info("🔍 Initial scan of available parameters...")
         

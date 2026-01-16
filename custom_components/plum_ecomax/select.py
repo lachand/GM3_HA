@@ -1,6 +1,13 @@
+"""Select platform for the Plum EcoMAX integration.
+
+This module handles dropdown selection entities (SelectEntity). It is used
+for parameters that have a discrete set of options, such as the DHW mode
+(Off, Manual, Auto) or other enumerated settings.
+"""
 import logging
 from typing import Any, Dict
 from homeassistant.components.select import SelectEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -11,11 +18,18 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: Any,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """
-    @brief Sets up Plum select entities (Dropdowns).
+    """Sets up Plum select entities (Dropdowns).
+
+    Iterates through the `SELECT_TYPES` configuration and creates an entity
+    if the corresponding parameter exists on the device.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The configuration entry.
+        async_add_entities: Callback to add entities to Home Assistant.
     """
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
@@ -30,16 +44,22 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 class PlumEconetSelect(CoordinatorEntity, SelectEntity):
-    """
-    @class PlumEconetSelect
-    @brief Representation of a multi-choice parameter (Enum).
+    """Representation of a multi-choice parameter (Enum).
+
+    This entity represents a selectable parameter on the Plum device,
+    mapping internal integer values to human-readable string options
+    (e.g., mapping 0->'Off', 1->'Manual').
     """
 
     def __init__(self, coordinator, slug: str, name: str, map_to_ha: Dict[int, str], map_to_plum: Dict[str, int]):
-        """
-        @brief Constructor.
-        @param map_to_ha Dictionary mapping Integer (Plum) -> String (Home Assistant).
-        @param map_to_plum Dictionary mapping String (Home Assistant) -> Integer (Plum).
+        """Initializes the select entity.
+
+        Args:
+            coordinator: The data update coordinator.
+            slug: The parameter identifier string.
+            name: The friendly name of the entity.
+            map_to_ha: Dictionary mapping Integer (Plum) -> String (Home Assistant).
+            map_to_plum: Dictionary mapping String (Home Assistant) -> Integer (Plum).
         """
         super().__init__(coordinator)
         self._slug = slug
@@ -55,9 +75,13 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        """
-        @brief Return the selected entity option to represent the entity state.
-        @details Converts the raw integer from device to a readable string.
+        """Returns the currently selected option.
+
+        Converts the raw integer value received from the device into a
+        human-readable string using the internal mapping.
+
+        Returns:
+            str | None: The selected option string, or None if unknown.
         """
         raw_val = self.coordinator.data.get(self._slug)
         try:
@@ -67,9 +91,13 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
             return None
 
     async def async_select_option(self, option: str) -> None:
-        """
-        @brief Change the selected option.
-        @details Converts the string back to integer and writes to device.
+        """Updates the selected option.
+
+        Converts the selected string back to the corresponding integer value
+        and writes it to the device via the coordinator.
+
+        Args:
+            option: The option selected by the user.
         """
         target_val = self._map_to_plum.get(option)
         

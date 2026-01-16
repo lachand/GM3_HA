@@ -1,3 +1,22 @@
+"""Constants and Configuration Maps for Plum EcoMAX.
+
+This module defines all the constant values, mapping dictionaries, and
+configuration schemas used throughout the integration. It acts as the
+central repository for:
+
+* **Domain & Defaults**: Integration domain and default connection ports.
+* **Mappings**: Translation maps between Plum device codes and Home Assistant states (HVAC, Presets).
+* **Entity Definitions**: Configuration dictionaries for Sensors, Climates, Switches, etc.
+* **Unit Definitions**: Standard units imported from Home Assistant.
+
+Attributes:
+    DOMAIN (str): The integration domain ('plum_ecomax').
+    DEFAULT_PORT (int): The default TCP port for the ecoNET module (8899).
+    CONF_ACTIVE_CIRCUITS (str): Configuration key for active heating circuits.
+    UPDATE_INTERVAL (int): Polling interval in seconds (30).
+    PLUM_TO_HA_HVAC (dict): Mapping from Plum WorkMode (0-3) to HA HVAC Modes.
+    SENSOR_TYPES (dict): Definitions of available sensors [Unit, Icon, DeviceClass].
+"""
 from homeassistant.const import (
     UnitOfTemperature,
     PERCENTAGE,

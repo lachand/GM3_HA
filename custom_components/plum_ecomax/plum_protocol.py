@@ -1,3 +1,9 @@
+"""Utilities for the Plum EcoMAX protocol.
+
+This module defines the data structures used to represent boiler parameters
+and network frames. It also contains the CRC-16 algorithm used to verify
+data integrity over the RS-485/TCP connection.
+"""
 import struct
 from dataclasses import dataclass
 from typing import ClassVar, Any
@@ -15,7 +21,17 @@ DATA_TYPES = {
 }
 
 def compute_crc16(data: bytes) -> int:
-    """CRC-16/CCITT (Poly 0x1021)"""
+    """Calculates the CRC-16/CCITT checksum.
+
+    Used by the ecoNET protocol to verify frame integrity.
+    Polynomial: 0x1021.
+
+    Args:
+        data: The raw bytes to calculate the checksum for.
+
+    Returns:
+        int: The calculated 16-bit checksum.
+    """
     crc = 0x0000
     poly = 0x1021
     for b in data:
@@ -28,9 +44,19 @@ def compute_crc16(data: bytes) -> int:
 
 @dataclass
 class BoilerParameter:
-    """
-    Classe générique représentant un paramètre de la chaudière.
-    Contient toutes les métadonnées pour l'affichage et l'interaction.
+    """Represents a specific parameter of the boiler.
+
+    This data class holds metadata about a parameter (name, unit, type)
+    and provides helper properties to decode the 'info_byte' which contains
+    permissions and data type information.
+
+    Attributes:
+        index (int): The unique ID of the parameter.
+        name (str): The human-readable name.
+        unit (str): The unit of measurement (e.g., "°C", "%").
+        exponent (int): Power of 10 to divide/multiply the raw value.
+        info_byte (int): A bitmask byte containing type and permissions.
+        value (Any): The current cached value (optional).
     """
     index: int
     name: str
@@ -41,25 +67,49 @@ class BoilerParameter:
 
     @property
     def is_modifiable(self) -> bool:
-        """Bit 5: Option to modify parameter"""
+        """Checks if the parameter can be modified (Bit 5).
+
+        Returns:
+            bool: True if writable.
+        """
         return bool((self.info_byte >> 5) & 1)
 
     @property
     def is_readable(self) -> bool:
-        """Bit 4: Option to read parameter"""
+        """Checks if the parameter can be read (Bit 4).
+
+        Returns:
+            bool: True if readable.
+        """
         return bool((self.info_byte >> 4) & 1)
 
     @property
     def data_type_code(self) -> int:
-        """Bits 0-3"""
+        """Extracts the data type code (Bits 0-3).
+
+        Returns:
+            int: The integer code representing the type (see DATA_TYPES).
+        """
         return self.info_byte & 0x0F
 
     @property
     def type_name(self) -> str:
+        """Returns the human-readable type name.
+
+        Returns:
+            str: The type name (e.g., "BYTE", "FLOAT").
+        """
         return DATA_TYPES.get(self.data_type_code, ("UNK", 0))[0]
 
     def format_value(self, raw_value) -> float | int | str:
-        """Applique l'exposant si nécessaire."""
+        """Formats the raw value according to the exponent.
+
+        Args:
+            raw_value: The raw numerical value received from the device.
+
+        Returns:
+            float | int | str: The processed value (e.g., 205 becomes 20.5 if exp is 1).
+        """
         if isinstance(raw_value, (int, float)) and self.exponent != 0:
             # Code U2 pour l'exposant (gestion des négatifs)
             exp = self.exponent
@@ -76,13 +126,31 @@ class BoilerParameter:
 
 @dataclass
 class BoilerFrame:
-    """Représentation d'une trame réseau."""
+    """Represents a low-level network frame.
+
+    Handles the encapsulation of the ecoNET protocol, including
+    header construction and CRC appending.
+
+    Attributes:
+        dest (int): Destination address (usually 1 for boiler).
+        src (int): Source address (usually 100 for HA).
+        func (int): Function code (e.g., 0x43 for read).
+        data (bytes): The payload of the message.
+    """
     dest: int
     src: int
     func: int
     data: bytes
 
     def to_bytes(self) -> bytes:
+        """Serializes the frame into bytes for transmission.
+
+        Adds the header (Length, Dest, Src, Func), calculates the CRC,
+        and adds Start/Stop bytes.
+
+        Returns:
+            bytes: The full binary frame ready to be sent over TCP.
+        """
         # L = Dest(2) + Src(2) + Func(1) + Data(n)
         l_val = 2 + 2 + 1 + len(self.data)
 
@@ -97,6 +165,14 @@ class BoilerFrame:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> 'BoilerFrame':
+        """Creates a BoilerFrame instance from the raw body.
+
+        Args:
+            data: The body of the frame (excluding Start, Stop, CRC, and Length).
+
+        Returns:
+            BoilerFrame: An initialized frame object.
+        """
         # data doit être le body (sans start/stop/crc/len)
         # Structure Body reçue: Dest(2) Src(2) Func(1) Payload(n)
         dest = struct.unpack("<H", data[0:2])[0]
