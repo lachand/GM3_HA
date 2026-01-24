@@ -38,18 +38,17 @@
             "thermostat": { "name": "Thermostat" }
         },
         "water_heater": {
-            "eau_chaude_sanitaire": { "name": "Domestic Hot Water" }
+            "hdw": { "name": "Domestic Hot Water" }
         },
         "sensor": {
             "tempwthr": { "name": "Outside Temperature" },
             "boilerpower": { "name": "Boiler Power" },
             "worktime": { "name": "Total Work Time" },
-            
             "tempcwu": { "name": "DHW Temperature" },
-            
+            "tempbuforup": { "name": "Buffer Tank (Top)" },
             "tempbufordown": { "name": "Buffer Tank (Bottom)" },
+            "tempclutch": { "name": "Clutch Temperature" },
             "buforsetpoint": { "name": "Buffer Tank Setpoint" },
-
             "tempcircuit1": { "name": "Flow Temperature" },
             "tempcircuit2": { "name": "Flow Temperature" },
             "tempcircuit3": { "name": "Flow Temperature" },
@@ -57,7 +56,6 @@
             "tempcircuit5": { "name": "Flow Temperature" },
             "tempcircuit6": { "name": "Flow Temperature" },
             "tempcircuit7": { "name": "Flow Temperature" },
-            
             "circuit1thermostattemp": { "name": "Room Temperature" },
             "circuit2thermostattemp": { "name": "Room Temperature" },
             "circuit3thermostattemp": { "name": "Room Temperature" },
@@ -65,7 +63,6 @@
             "circuit5thermostattemp": { "name": "Room Temperature" },
             "circuit6thermostattemp": { "name": "Room Temperature" },
             "circuit7thermostattemp": { "name": "Room Temperature" },
-
             "mixer1valveposition": { "name": "Valve Opening" },
             "mixer2valveposition": { "name": "Valve Opening" },
             "mixer3valveposition": { "name": "Valve Opening" },
@@ -78,6 +75,21 @@
             "hdwtsetpoint": { "name": "DHW Setpoint" },
             "hdwminsettemp": { "name": "DHW Min Temp" },
             "hdwmaxsettemp": { "name": "DHW Max Temp" }
+        },
+        "switch": {
+            "hdwstartoneloading": {
+                "name": "Force DHW reload"
+            }
+        },
+        "select": {
+            "hdwusermode": {
+                "name": "DHW Mode",
+                "state": {
+                    "off": "Off",
+                    "manual": "Manual",
+                    "auto": "Auto"
+                }
+            }
         }
     }
 }

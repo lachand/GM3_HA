@@ -98,7 +98,7 @@ class AsyncPlumTransport:
 
         while (asyncio.get_running_loop().time() - start_time) < timeout:
             try:
-                # Lecture par petits blocs
+                # Read in small chunks
                 chunk = await asyncio.wait_for(self.reader.read(1024), timeout=0.5)
                 if not chunk:
                     return None
@@ -110,43 +110,50 @@ class AsyncPlumTransport:
                         start_idx = self._buffer.index(START_BYTE)
                     except ValueError:
                         self._buffer.clear()
-                        break # Pas de start byte, on attend plus de data
+                        break  # No start byte, waiting for more data
 
-                    # On aligne le buffer
+                    # Align the buffer
                     if start_idx > 0:
                         del self._buffer[:start_idx]
 
-                    # Header minimum : 68 L L
+                    # Minimum header: 68 L L
                     if len(self._buffer) < 3:
                         break
 
                     l_val = struct.unpack("<H", self._buffer[1:3])[0]
-                    total_len = l_val + 6 # 68 + L(2) + Content(L) + CRC(2) + 16
+                    total_len = (
+                        l_val + 6
+                    )  # 68 + L(2) + Content(L) + CRC(2) + 16
 
                     if len(self._buffer) < total_len:
-                        break # Trame incomplète, on attend
+                        break  # Incomplete frame, waiting
 
                     # Extraction
                     frame_bytes = self._buffer[:total_len]
 
-                    # Validation CRC
-                    # Body pour CRC = L(2) + Content(L) => indices 1 à 1+2+L
+                    # CRC Validation
+                    # Body for CRC = L(2) + Content(L) => indices 1 to 1+2+L
                     body_end = 1 + 2 + l_val
                     body = frame_bytes[1:body_end]
 
-                    received_crc = struct.unpack(">H", frame_bytes[body_end:body_end+2])[0]
+                    received_crc = struct.unpack(
+                        ">H", frame_bytes[body_end : body_end + 2]
+                    )[0]
 
-                    if compute_crc16(body) == received_crc and frame_bytes[-1] == STOP_BYTE:
-                        # Trame Valide !
-                        # On extrait le contenu interne: Dest, Src, Func, Data
-                        # Body contient: L(2) Dest(2) Src(2) Func(1) Payload...
-                        # On passe body[2:] à from_bytes car from_bytes attend Dest...
+                    if (
+                        compute_crc16(body) == received_crc
+                        and frame_bytes[-1] == STOP_BYTE
+                    ):
+                        # Valid Frame!
+                        # Extract internal content: Dest, Src, Func, Data
+                        # Body contains: L(2) Dest(2) Src(2) Func(1) Payload...
+                        # We pass body[2:] to from_bytes because from_bytes expects Dest...
                         valid_frame = BoilerFrame.from_bytes(body[2:])
 
-                        del self._buffer[:total_len] # Consomme
+                        del self._buffer[:total_len]  # Consume
                         return valid_frame
                     else:
-                        # CRC invalide, on jette le StartByte et on réessaie
+                        # Invalid CRC, discard the StartByte and retry
                         del self._buffer[0]
 
             except asyncio.TimeoutError:

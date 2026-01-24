@@ -1,54 +1,63 @@
 """Data Update Coordinator for Plum EcoMAX.
 
 This module provides the central data management logic for the integration.
-It handles:
-
-* **Polling**: Periodic fetching of data from the device.
-* **Caching**: Storing values to reduce bus load.
-* **Validation**: Filtering out invalid values (outliers, error codes) before they reach Home Assistant.
-* **Write-Through**: Updating the local cache immediately after a successful write operation (Optimistic UI).
+It handles polling, caching, validation, and a robust "fire-and-forget"
+write strategy to ensure commands reach the device despite network latency.
 """
 import logging
 import asyncio
 import time
 from datetime import timedelta
-from typing import Any, Dict, Optional, Tuple
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from .const import DOMAIN, UPDATE_INTERVAL, SENSOR_TYPES, CLIMATE_TYPES, NUMBER_TYPES, SCHEDULE_TYPES, WATER_HEATER_TYPES
+from typing import Any, Dict, Tuple, Optional
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+# Conditional import for typing only
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .plum_device import PlumDevice
+
+from .const import (
+    DOMAIN,
+    UPDATE_INTERVAL,
+    SENSOR_TYPES,
+    CLIMATE_TYPES,
+    NUMBER_TYPES,
+    SCHEDULE_TYPES,
+    WATER_HEATER_TYPES,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_TTL = 25
+DEFAULT_TTL = 300
 
-## Definitions of physical limits for validation
-# Format: "keyword_in_slug": (min_val, max_val)
+# Definitions of physical limits for validation
 VALIDATION_RANGES = {
-    "temp": (-20, 100.0),     # Water temperature (avoid 0.0 which is often a sensor error)
-    "power": (0, 100),       # Percentage
-    "fan": (0, 100),         # Percentage
-    "valveposition": (0, 100),         # Percentage
-    "pressure": (0.0, 4.0),  # Bar
-    "lambda": (0.0, 25.0),   # Oxygen level
+    "temp": (-20, 100.0),
+    "power": (0, 100),
+    "fan": (0, 100),
+    "valveposition": (0, 100),
+    "pressure": (0.0, 4.0),
+    "lambda": (0.0, 25.0),
 }
 
 class PlumDataUpdateCoordinator(DataUpdateCoordinator):
     """Centralized data management with Robust Data Validation.
 
-    This class extends Home Assistant's DataUpdateCoordinator to implement
-    specific strategies for the ecoNET protocol, including caching,
-    write-through updates, and aggressive data sanitization to prevent
-    outliers from polluting the state machine.
+    Implements caching, write-through strategies, and data sanitization
+    to prevent outliers from polluting the state machine.
     """
 
-    def __init__(self, hass, device):
+    def __init__(self, hass: HomeAssistant, device: "PlumDevice"):
         """Initializes the coordinator.
 
         Args:
-            hass: The Home Assistant core instance.
-            device: The low-level PlumDevice instance used for communication.
+            hass: Home Assistant core instance.
+            device: The low-level PlumDevice instance.
         """
         self.device = device
-        self.available_slugs = []
+        self.available_slugs: list[str] = []
         
         # Cache System
         self._cache: Dict[str, Any] = {}
@@ -63,15 +72,11 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> Dict[str, Any]:
         """Main update loop with Validation and Fallback.
 
-        This method is called by Home Assistant at the defined interval.
-        It iterates over known parameters, checks the cache freshness,
-        and fetches new data if necessary.
-
         Returns:
-            dict: The dictionary of validated data key-value pairs.
+            dict: The validated data.
         """
         data = {}
         now = time.time()
@@ -92,7 +97,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
 
             # 2. Fetch & Validate
             try:
-                raw_val = await self.device.get_value(slug, retries=5)
+                raw_val = await self.device.get_value(slug, retries=2)
                 
                 # --- VALIDATION STEP ---
                 is_valid, final_val = self._validate_value(slug, raw_val, cached_val)
@@ -107,9 +112,6 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                     # Invalid data: Use fallback (Hold Last State)
                     if cached_val is not None:
                         data[slug] = cached_val
-                        # We do NOT update the timestamp to retry fetch sooner if needed,
-                        # OR we update it if we want to suppress the error for a cycle.
-                        # Here, we keep old timestamp to retry next cycle.
                     
             except Exception as e:
                 _LOGGER.warning(f"Error reading {slug}: {e}")
@@ -121,18 +123,13 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
     def _validate_value(self, slug: str, raw_val: Any, cached_val: Any) -> Tuple[bool, Any]:
         """Sanitizes the raw value based on JSON limits or Generic constraints.
 
-        The validation process follows a strict hierarchy:
-        1.  Protocol errors (None, 999) are rejected immediately.
-        2.  Specific limits defined in `device_map.json` (min/max) take priority.
-        3.  Generic limits defined in `VALIDATION_RANGES` are applied as a fallback.
-
         Args:
             slug: The parameter identifier.
-            raw_val: The raw value received from the device.
-            cached_val: The previous known good value (for delta checks).
+            raw_val: The raw value received.
+            cached_val: The previous value (for delta checking).
 
         Returns:
-            Tuple[bool, Any]: A tuple containing (IsValid, SafeValue).
+            Tuple[bool, Any]: (IsValid, SafeValue).
         """
         # A. Basic protocol checks
         if raw_val is None:
@@ -148,6 +145,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         json_max = param_def.get("max")
         json_max_delta = param_def.get("max_delta")
 
+        # B. Specific bounds check (JSON)
         if (json_min is not None or json_max is not None) and isinstance(raw_val, (int, float)):
             is_valid = True
             
@@ -155,119 +153,82 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                 is_valid = False
             if json_max is not None and raw_val > json_max:
                 is_valid = False
-            if json_max_delta is not None and cached_val is not None and abs(cached_val - raw_val) > json_max_delta :
-                is_valide = False
+            # Fix typo from original code: is_valide -> is_valid
+            if json_max_delta is not None and cached_val is not None and abs(cached_val - raw_val) > json_max_delta:
+                is_valid = False
                 
             if not is_valid:
-                _LOGGER.warning(
-                    f"🛑 Specific Outlier detected for {slug}: {raw_val}. "
-                    f"JSON Limits [{json_min}, {json_max}]. Holding last state ({cached_val})."
-                )
                 return False, None
         
             return True, raw_val
 
+        # C. Generic bounds check (Fallback)
         if isinstance(raw_val, (int, float)):
             for keyword, (min_v, max_v) in VALIDATION_RANGES.items():
                 if keyword in slug:
                     if not (min_v <= raw_val <= max_v):
-                        _LOGGER.warning(
-                            f"🛑 Generic Outlier detected for {slug}: {raw_val}. "
-                            f"Global Limits [{min_v}, {max_v}]. Holding last state ({cached_val})."
-                        )
                         return False, None
-                    break # Stop at first matching rule
+                    break 
                     
         return True, raw_val
         
 
     async def async_set_value(self, slug: str, value: Any) -> bool:
-        """Writes a value to the device and verifies it was correctly set.
+        """Writes a value using Optimistic UI + Repeated Background Sends.
 
-        This implements a 'Write & Verify' pattern with retries. It attempts to write
-        the value, then reads it back to ensure the device accepted the change.
-        If the read value differs from the target, it retries up to 5 times.
+        1. Updates the internal cache immediately so the UI is responsive.
+        2. Launches a background task to send the command 5 times to ensure
+           reception by the hardware.
 
         Args:
             slug: The parameter identifier.
             value: The value to write.
 
         Returns:
-            bool: True if the write was successful and verified.
+            bool: Always True (Optimistic).
         """
-        max_retries = 5
+        # 1. Optimistic Cache Update (Immediate)
+        async with self._cache_lock:
+            self._cache[slug] = value
+            self._timestamps[slug] = time.time()
         
-        for attempt in range(1, max_retries + 1):
-            # 1. Perform the physical write
-            write_success = await self.device.set_value(slug, value)
-            
-            if write_success:
-                # 2. Verification step: Read back the value
-                # We wait a tiny bit to let the device process the write
-                await asyncio.sleep(0.5) 
-                
-                verified_value = await self.device.get_value(slug, retries=1)
-                
-                # Check if the read value matches our target
-                # We handle loose equality (e.g. 20.0 vs 20)
-                if verified_value is not None:
-                    # Conversion to float for robust comparison if numbers
-                    try:
-                        matches = float(verified_value) == float(value)
-                    except (ValueError, TypeError):
-                        matches = verified_value == value
+        # Notify Home Assistant immediately
+        self.async_set_updated_data(self._cache)
+        _LOGGER.info(f"✅ Optimistic set for {slug}={value}. Launching background sends.")
 
-                    if matches:
-                        # 3. Success: Update cache (Optimistic update)
-                        async with self._cache_lock:
-                            self._cache[slug] = value
-                            self._timestamps[slug] = time.time()
-                        
-                        self.async_set_updated_data(self._cache)
-                        _LOGGER.info(f"✅ Value {slug}={value} set and verified (Attempt {attempt}).")
-                        return True
-                    else:
-                        _LOGGER.warning(
-                            f"⚠️ Write verification failed for {slug}. "
-                            f"Wrote: {value}, Read back: {verified_value}. Retrying ({attempt}/{max_retries})..."
-                        )
-                else:
-                    _LOGGER.warning(f"⚠️ Verification read failed for {slug}. Retrying ({attempt}/{max_retries})...")
-            else:
-                _LOGGER.error(f"❌ Physical write failed for {slug}. Retrying ({attempt}/{max_retries})...")
-            
-            # Exponential backoff before next retry (1s, 2s, 4s...)
-            await asyncio.sleep(1.0 * attempt)
+        # 2. Launch background task for repeated sending
+        # This prevents blocking the UI or the event loop
+        asyncio.create_task(self._perform_repeated_write(slug, value))
+        
+        return True
 
-        _LOGGER.error(f"❌ Failed to set {slug}={value} after {max_retries} attempts.")
-        return False
+    async def _perform_repeated_write(self, slug: str, value: Any) -> None:
+        """Background task to spam the write command.
 
-    async def _detect_available_parameters(self):
-        """Initial scan to filter out unsupported parameters.
+        Sends the command 5 times with a 2-second interval.
 
-        Iterates through all possible parameters defined in `const.py`,
-        checks if they exist in the device map, and attempts a physical read.
-        Only responding parameters are retained for future polling.
+        Args:
+            slug: Parameter slug.
+            value: Value to write.
         """
+        for i in range(1, 6): # 5 attempts
+            _LOGGER.debug(f"📤 Sending {slug}={value} (Attempt {i}/5)")
+            await self.device.set_value(slug, value)
+            
+            # Wait 2 seconds between sends, but not after the last one
+            if i < 5:
+                await asyncio.sleep(2.0)
+
+    async def _detect_available_parameters(self) -> None:
+        """Initial scan to filter out unsupported parameters."""
         _LOGGER.info("🔍 Initial scan of available parameters...")
         
         targets = []
-        
-        # 1. Sensors
         targets.extend(list(SENSOR_TYPES.keys()))
-        
-        # 2. Climates (Temperature + Target)
-        for conf in CLIMATE_TYPES.values():
-            targets.extend(conf) 
-            
-        # 3. Numbers
+        for conf in CLIMATE_TYPES.values(): targets.extend(conf) 
         targets.extend(list(NUMBER_TYPES.keys()))
-
-        # 4. Water heater
-        for conf in WATER_HEATER_TYPES.values():
-            targets.extend(conf)
-
-        # 5. Schedules
+        for conf in WATER_HEATER_TYPES.values(): targets.extend(conf)
+        # Added Schedule types to detection
         targets.extend(list(SCHEDULE_TYPES.keys()))
         
         valid_slugs = []
@@ -280,7 +241,6 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
             # Filter invalid values (999.0 often indicates a disconnected probe)
             if val is not None and val != 999.0:
                  valid_slugs.append(slug)
-                 _LOGGER.debug(f"Detected parameter: {slug}")
         
         self.available_slugs = list(set(valid_slugs))
         _LOGGER.info(f"✅ {len(self.available_slugs)} active parameters retained.")

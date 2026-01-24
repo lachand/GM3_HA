@@ -50,6 +50,7 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
     It uses the data coordinator to read the current state and write
     changes back to the device (e.g., setting a value of 1 for On and 0 for Off).
     """
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator, slug: str, name: str):
         """Initializes the switch entity.
@@ -61,9 +62,9 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
         """
         super().__init__(coordinator)
         self._slug = slug
-        self._attr_name = name
+        self._log_name = name
+        self._attr_translation_key = slug
         self._attr_unique_id = f"{DOMAIN}_{slug}"
-        self._attr_has_entity_name = False
 
     @property
     def is_on(self) -> bool:
@@ -87,7 +88,7 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
         Args:
             **kwargs: Keyword arguments (unused).
         """
-        _LOGGER.info(f"Turning ON {self._attr_name} ({self._slug})")
+        _LOGGER.info(f"Turning ON {self._log_name} ({self._slug})")
         await self.coordinator.async_set_value(self._slug, 1)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -99,5 +100,5 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
         Args:
             **kwargs: Keyword arguments (unused).
         """
-        _LOGGER.info(f"Turning OFF {self._attr_name} ({self._slug})")
+        _LOGGER.info(f"Turning OFF {self._log_name} ({self._slug})")
         await self.coordinator.async_set_value(self._slug, 0)

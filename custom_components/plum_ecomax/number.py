@@ -51,7 +51,7 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         super().__init__(coordinator)
         self._slug = slug
         
-        # --- CHANGEMENT INDEX ---
+        # --- INDEX CHANGE ---
         self._min_val = config[0]
         self._max_val = config[1]
         self._step_val = config[2]
@@ -61,7 +61,7 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         self._attr_translation_key = slug
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         """Returns the unique ID of the entity.
 
         Returns:
@@ -105,8 +105,4 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         Args:
             value: The new value to set.
         """
-        if await self.coordinator.device.set_value(self._slug, int(value)):
-            self.coordinator.data[self._slug] = value
-            self.async_write_ha_state()
-        else:
-            await self.coordinator.async_request_refresh()
+        await self.coordinator.async_set_value(self._slug, int(value))

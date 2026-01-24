@@ -42,7 +42,7 @@ class PlumConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             await self.async_set_unique_id(user_input[CONF_IP_ADDRESS])
             self._abort_if_unique_id_configured()
-            title = f"Chaudière ({user_input[CONF_IP_ADDRESS]})"
+            title = f"Boiler ({user_input[CONF_IP_ADDRESS]})"
             return self.async_create_entry(title=title, data=user_input)
 
         data_schema = vol.Schema({
@@ -53,8 +53,7 @@ class PlumConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             vol.Required(CONF_ACTIVE_CIRCUITS, default=["2"]): SelectSelector(
                 SelectSelectorConfig(
-                    # Les labels pointent vers options.1, options.2 dans fr.json
-                    options=[{"label": f"options.{k}", "value": k} for k in CIRCUIT_CHOICES],
+                    options=CIRCUIT_CHOICES,
                     mode=SelectSelectorMode.DROPDOWN,
                     multiple=True,
                     translation_key="circuits_selector"

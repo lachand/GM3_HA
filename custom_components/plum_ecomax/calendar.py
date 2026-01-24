@@ -60,15 +60,15 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         """
         super().__init__(coordinator)
         self._entry_id = entry.entry_id
-        self._system_type = system_type # 'circuit' ou 'hdw'
+        self._system_type = system_type  # 'circuit' or 'hdw'
         self._index = index
         self._event = None
 
         if self._system_type == "circuit":
-            self._attr_name = f"Calendrier Circuit {index}"
+            self._attr_name = f"Calendar Circuit {index}"
             self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_calendar_circuit_{index}"
         else:
-            self._attr_name = "Calendrier ECS"
+            self._attr_name = "DHW Calendar"
             self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_calendar_hdw"
 
     @property
@@ -183,11 +183,11 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
             dt_end = dt_util.as_local(date_base.replace(hour=int(end_h), minute=int(end_m), second=0, microsecond=0))
 
         if is_active:
-            summary = "Actif"
-            description = "Heating/DHW comfort (Jour)"
+            summary = "Active"
+            description = "Heating/DHW comfort (Day)"
         else:
-            summary = "Éco"
-            description = "Heating/DHW eco (Nuit)"
+            summary = "Eco"
+            description = "Heating/DHW eco (Night)"
 
         return CalendarEvent(
             summary=summary,

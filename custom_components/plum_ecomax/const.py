@@ -31,7 +31,7 @@ from homeassistant.const import (
 # --- CONFIGURATION SWITCH (ON/OFF) ---
 # Format: "slug": "Friendly Name"
 SWITCH_TYPES = {
-    "hdwstartoneloading": "Force Recharge ECS",
+    "hdwstartoneloading": "Force DHW reload",
 }
 
 # --- CONFIGURATION SELECT (DROPDOWN) ---
@@ -52,11 +52,11 @@ HA_TO_DHW_MODES = {
 
 # Format: "slug": ("Friendly Name", Map_To_HA, Map_To_Plum)
 SELECT_TYPES = {
-    "hdwusermode": ("Mode ECS", DHW_MODES_TO_HA, HA_TO_DHW_MODES),
+    "hdwusermode": ("DHW Mode", DHW_MODES_TO_HA, HA_TO_DHW_MODES),
 }
 
-# --- DÉFINITION LOCALE DES CONSTANTES (Indépendant de HA) ---
-# On définit nous-mêmes les valeurs standards pour éviter tout problème d'import
+# --- LOCAL CONSTANT DEFINITIONS (Independent of HA) ---
+# We define our own standard values to avoid any import issues
 HVAC_MODE_OFF = "off"
 HVAC_MODE_HEAT = "heat"
 HVAC_MODE_AUTO = "auto"
@@ -68,8 +68,8 @@ PRESET_ECO = "eco"
 
 # Mapping Plum -> Home Assistant
 PLUM_TO_HA_HVAC = {
-    0: HVAC_MODE_HEAT, # Hors gel (0) = Chauffe active
-    1: HVAC_MODE_HEAT, # Confort
+    0: HVAC_MODE_HEAT, # Frost protection (0) = Active heating
+    1: HVAC_MODE_HEAT, # Comfort
     2: HVAC_MODE_HEAT, # Eco
     3: HVAC_MODE_AUTO, # Auto
 }
@@ -80,7 +80,7 @@ PLUM_TO_HA_PRESET = {
     2: PRESET_ECO,
 }
 
-# Mapping Inverse Home Assistant -> Plum
+# Inverse Mapping Home Assistant -> Plum
 HA_TO_PLUM_HVAC = {
     HVAC_MODE_OFF: 0,
     HVAC_MODE_AUTO: 3,
@@ -97,13 +97,13 @@ DEFAULT_PORT = 8899
 
 CONF_ACTIVE_CIRCUITS = "active_circuits"
 
-# Mapping simplifié (Juste les clés)
+# Simplified Mapping (Just the keys)
 CIRCUIT_CHOICES = ["1", "2", "3", "4", "5", "6", "7"]
 
-UPDATE_INTERVAL = 60
+UPDATE_INTERVAL = 30
 
-# --- CONFIGURATION DES CAPTEURS ---
-# Format: "slug": [Unité, Icone, DeviceClass] (3 éléments)
+# --- SENSOR CONFIGURATION ---
+# Format: "slug": [Unit, Icon, DeviceClass] (3 elements)
 SENSOR_TYPES = {
     "tempwthr": [UnitOfTemperature.CELSIUS, "mdi:thermometer", "temperature"],
     "boilerpower": [UnitOfPower.KILO_WATT, "mdi:flash", "power"],
@@ -111,6 +111,7 @@ SENSOR_TYPES = {
     "tempcwu": [UnitOfTemperature.CELSIUS, "mdi:water-boiler", "temperature"],
     "tempbuforup": [UnitOfTemperature.CELSIUS, "mdi:water", "temperature"],
     "tempbufordown": [UnitOfTemperature.CELSIUS, "mdi:water", "temperature"],
+    "tempclutch": [UnitOfTemperature.CELSIUS, "mdi:fire-alert", "temperature"],
     "buforsetpoint": [UnitOfTemperature.CELSIUS, "mdi:target", "temperature"],
 
     "tempcircuit1": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
@@ -167,26 +168,26 @@ WEEKDAY_TO_SLUGS = {
     6: ("sundayam", "sundaypm")
 }
 
-# --- CONFIGURATION CHAUFFE-EAU (Water Heater) ---
-# Format: "Nom": (Temp_Actuelle, Consigne, Min, Max, Mode_Slug, Force_Slug)
+# --- WATER HEATER CONFIGURATION ---
+# Format: "Name": (Current_Temp, Setpoint, Min, Max, Mode_Slug, Force_Slug)
 WATER_HEATER_TYPES = {
     "hdw": (
-        "tempcwu",           # Température actuelle
-        "hdwtsetpoint",        # Consigne
-        "hdwminsettemp",     # Borne Min
-        "hdwmaxsettemp",     # Borne Max
-        "hdwusermode",       # Mode (0=Off, 1=Manuel, 2=Auto)
+        "tempcwu",           # Current temperature
+        "hdwtsetpoint",        # Setpoint
+        "hdwminsettemp",     # Min bound
+        "hdwmaxsettemp",     # Max bound
+        "hdwusermode",       # Mode (0=Off, 1=Manual, 2=Auto)
     )
 }
 
-# Mapping des modes Plum vers Home Assistant Water Heater
+# Mapping Plum modes to Home Assistant Water Heater
 # Off = Off
-# Manuel = Performance (ou Gas/Electric)
+# Manual = Performance (or Gas/Electric)
 # Auto = Eco
 PLUM_TO_HA_WATER_HEATER = {
     0: "off",
-    1: "performance", # Considéré comme "Manuel / Confort permanent"
-    2: "eco"          # Considéré comme "Auto / Planning"
+    1: "performance", # Considered as "Manual / Permanent Comfort"
+    2: "eco"          # Considered as "Auto / Schedule"
 }
 
 HA_TO_PLUM_WATER_HEATER = {
@@ -217,5 +218,5 @@ for i in range(1, 8): # Circuits 1 to 7
 for day_id, (suffix_am, suffix_pm) in WEEKDAY_TO_SLUGS.items():
     slug_am = f"hdw{suffix_am}"
     slug_pm = f"hdw{suffix_pm}"
-    SCHEDULE_TYPES[slug_am] = "ECS AM"
-    SCHEDULE_TYPES[slug_pm] = "ECS PM"
+    SCHEDULE_TYPES[slug_am] = "DHW AM"
+    SCHEDULE_TYPES[slug_pm] = "DHW PM"

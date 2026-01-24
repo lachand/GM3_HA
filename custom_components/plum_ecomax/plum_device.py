@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# Constantes Protocolaires
+# Protocol Constants
 DEST_ID = 1
 SOURCE_ID = 100
 CMD_READ_VAL = 0x43
@@ -61,9 +61,9 @@ class PlumDevice:
             with open(self.map_file, 'r') as f:
                 self.params_map = json.load(f)
         except Exception as e:
-            logger.error(f"Erreur chargement map: {e}")
+            logger.error(f"Error loading map: {e}")
 
-    # --- ENCODAGE / DECODAGE ---
+    # --- ENCODING / DECODING ---
     def _encode(self, value: Any, param_def: dict) -> bytes:
         """Encodes a Python value into raw bytes based on the parameter definition.
 
@@ -77,7 +77,7 @@ class PlumDevice:
         ptype = param_def['type']
         exp = param_def['exponent']
         
-        # Gestion des exposants (ex: 20.5 -> 205 si exponent=1)
+        # Exponent handling (e.g., 20.5 -> 205 if exponent=1)
         if ptype != "FLOAT" and isinstance(value, (int, float)) and exp != 0:
             value = int(round(value / (10 ** exp)))
 
@@ -140,11 +140,11 @@ class PlumDevice:
         for attempt in range(1, retries + 1):
             val = await asyncio.to_thread(self._sync_get_value, pid, param)
             if val is not None:
-                self._data_cache[slug] = val # Mise en cache
+                self._data_cache[slug] = val  # Caching
                 return val
             await asyncio.sleep(0.2 * attempt)
         
-        # Retourne la dernière valeur connue si échec
+        # Returns the last known value on failure
         return self._data_cache.get(slug)
 
     async def set_value(self, slug: str, value: Any, password: str = None, user: str = None) -> bool:
@@ -162,7 +162,7 @@ class PlumDevice:
         param = self.params_map.get(slug)
         if not param: return False
         
-        # Utilisation des identifiants stockés si non fournis
+        # Use stored credentials if not provided
         target_pass = password if password is not None else self.password
         target_user = user if user is not None else self.user
         
@@ -180,7 +180,7 @@ class PlumDevice:
             await asyncio.sleep(1.0)
         return False
 
-    # --- WORKERS SYNCHRONES ---
+    # --- SYNC WORKERS ---
     def _sync_get_value(self, pid: int, param: dict) -> Any:
         """Blocking worker to fetch a single value."""
         self.session_id = (self.session_id + 1) % 65000
@@ -189,7 +189,7 @@ class PlumDevice:
         resp = self._socket_transaction(frame)
         
         if resp and len(resp) > 7:
-            # Extraction simple sans vérif poussée pour l'exemple
+            # Simple extraction without extensive verification for the example
             return self._decode(resp[7:], param)
         return None
 
@@ -243,9 +243,9 @@ class PlumDevice:
                 if not chunk: break
                 buffer.extend(chunk)
                 if b'\x68' in buffer and buffer.endswith(b'\x16'):
-                     # Recherche simplifiée du header 0x68
+                     # Simplified search for header 0x68
                      idx = buffer.find(b'\x68')
-                     return buffer[idx+8:-3] # Retourne payload
+                     return buffer[idx+8:-3] # Returns payload
             return None
         except:
             return None

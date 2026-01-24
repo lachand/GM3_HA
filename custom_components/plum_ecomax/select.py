@@ -50,6 +50,7 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
     mapping internal integer values to human-readable string options
     (e.g., mapping 0->'Off', 1->'Manual').
     """
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator, slug: str, name: str, map_to_ha: Dict[int, str], map_to_plum: Dict[str, int]):
         """Initializes the select entity.
@@ -63,9 +64,9 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
         """
         super().__init__(coordinator)
         self._slug = slug
-        self._attr_name = name
+        self._log_name = name
+        self._attr_translation_key = slug
         self._attr_unique_id = f"{DOMAIN}_{slug}"
-        self._attr_has_entity_name = False
         
         self._map_to_ha = map_to_ha
         self._map_to_plum = map_to_plum
@@ -102,7 +103,7 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
         target_val = self._map_to_plum.get(option)
         
         if target_val is not None:
-            _LOGGER.info(f"Setting {self._attr_name} to {option} (Raw: {target_val})")
+            _LOGGER.info(f"Setting {self._log_name} to {option} (Raw: {target_val})")
             await self.coordinator.async_set_value(self._slug, target_val)
         else:
             _LOGGER.error(f"Invalid option '{option}' for {self._slug}")

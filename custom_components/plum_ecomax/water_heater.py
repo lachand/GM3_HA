@@ -48,7 +48,7 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
-    _LOGGER.info("🚀 Démarrage de la configuration Water Heater...")
+    _LOGGER.info("Starting water heater setup...")
 
     for key, slugs in WATER_HEATER_TYPES.items():
         current_temp, target_temp, min_temp, max_temp, mode_slug = slugs
@@ -116,7 +116,6 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         self._max_slug = max_slug
         self._mode_slug = mode_slug
         
-        self._attr_name = translation_key
         self._attr_unique_id = f"{DOMAIN}_{translation_key}"
         self._attr_has_entity_name = True
 
@@ -129,9 +128,9 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         """
         return DeviceInfo(
             identifiers={(DOMAIN, "plum_hdw")},
-            name="HDW",
+            name="DHW",
             manufacturer="Plum",
-            model="Gestionnaire ECS",
+            model="DHW Manager",
         )
 
     @property

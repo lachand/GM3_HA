@@ -42,7 +42,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         target_slug = f"circuit{circuit_id}comforttemp"
         active_slug = f"circuit{circuit_id}active"
         
-        # Fallback sonde
+        # Fallback sensor
         if current_slug not in coordinator.device.params_map:
              current_slug = f"tempcircuit{circuit_id}"
 
@@ -66,7 +66,6 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
     
-    # CLÉ DE TRADUCTION
     _attr_translation_key = "thermostat"
 
     def __init__(self, coordinator, entry, circuit_id, current_slug, target_slug, active_slug):
@@ -88,7 +87,7 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
         self._active_slug = active_slug
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         """Returns a unique ID for the climate entity.
 
         Returns:
@@ -97,7 +96,7 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
         return f"{DOMAIN}_{self._entry_id}_circuit_{self._circuit_id}_climate"
 
     @property
-    def device_info(self):
+    def device_info(self) -> dict:
         """Links the entity to the device registry.
 
         Returns:
@@ -156,18 +155,16 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
         if is_active == 0: return HVACMode.OFF
         return HVACMode.HEAT
 
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Sets new target operation mode.
 
         Args:
             hvac_mode: The desired HVAC mode.
         """
         value = 1 if hvac_mode == HVACMode.HEAT else 0
-        if await self.coordinator.device.set_value(self._active_slug, value):
-            self.coordinator.data[self._active_slug] = value
-            self.async_write_ha_state()
+        await self.coordinator.async_set_value(self._active_slug, value)
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs) -> None:
         """Sets new target temperature.
 
         If the device is currently Off, it will be switched to Heat mode automatically.
@@ -176,12 +173,10 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
             **kwargs: Keyword arguments containing ATTR_TEMPERATURE.
         """
         temp = kwargs.get(ATTR_TEMPERATURE)
-        if temp is None: return
+        if temp is None:
+            return
+
         if self.hvac_mode == HVACMode.OFF:
             await self.async_set_hvac_mode(HVACMode.HEAT)
-        
-        if await self.coordinator.device.set_value(self._target_slug, temp):
-            self.coordinator.data[self._target_slug] = temp
-            self.async_write_ha_state()
-        else:
-            await self.coordinator.async_request_refresh()
+
+        await self.coordinator.async_set_value(self._target_slug, temp)

@@ -33,6 +33,20 @@
         "min" : 10,
         "max" : 100
     },
+    "tempclutch": {
+        "id": 64,
+        "type": "FLOAT",
+        "unit": "C",
+        "exponent": 0,
+        "name_orig": "TempClutch"
+    },
+    "temppowgz": {
+        "id": 65,
+        "type": "FLOAT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "TempPowGz"
+    },
     "tempcircuit2": {
         "id": 66,
         "type": "FLOAT",

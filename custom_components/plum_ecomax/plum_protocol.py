@@ -8,11 +8,11 @@ import struct
 from dataclasses import dataclass
 from typing import ClassVar, Any
 
-# --- CONSTANTES ---
+# --- CONSTANTS ---
 START_BYTE = 0x68
 STOP_BYTE = 0x16
 
-# Mapping des types selon Spec 1.4.2
+# Type mapping according to Spec 1.4.2
 DATA_TYPES = {
     0x01: ("SHORT INT", 1), 0x02: ("INT", 2), 0x03: ("LONG INT", 4),
     0x04: ("BYTE", 1), 0x05: ("WORD", 2), 0x06: ("DWORD", 4),
@@ -63,7 +63,7 @@ class BoilerParameter:
     unit: str
     exponent: int
     info_byte: int
-    value: Any = None  # Pour stocker la valeur courante plus tard
+    value: Any = None  # To store the current value later
 
     @property
     def is_modifiable(self) -> bool:
@@ -111,7 +111,7 @@ class BoilerParameter:
             float | int | str: The processed value (e.g., 205 becomes 20.5 if exp is 1).
         """
         if isinstance(raw_value, (int, float)) and self.exponent != 0:
-            # Code U2 pour l'exposant (gestion des négatifs)
+            # U2 code for the exponent (handles negatives)
             exp = self.exponent
             return raw_value * (10 ** exp)
         return raw_value
@@ -158,7 +158,7 @@ class BoilerFrame:
         header = struct.pack("<HHHB", l_val, self.dest, self.src, self.func)
         body = header + self.data
 
-        # CRC (Big Endian >H sur le réseau !)
+        # CRC (Big Endian >H over the network!)
         crc = compute_crc16(body)
 
         return struct.pack("B", START_BYTE) + body + struct.pack(">H", crc) + struct.pack("B", STOP_BYTE)
@@ -173,8 +173,8 @@ class BoilerFrame:
         Returns:
             BoilerFrame: An initialized frame object.
         """
-        # data doit être le body (sans start/stop/crc/len)
-        # Structure Body reçue: Dest(2) Src(2) Func(1) Payload(n)
+        # data must be the body (without start/stop/crc/len)
+        # Received Body Structure: Dest(2) Src(2) Func(1) Payload(n)
         dest = struct.unpack("<H", data[0:2])[0]
         src = struct.unpack("<H", data[2:4])[0]
         func = data[4]

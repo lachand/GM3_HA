@@ -70,10 +70,7 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
     NaN/Infinity to prevent errors in Home Assistant's recorder.
     """
     
-    # --- SAFETY NOTE: Translation key disabled to prevent UndefinedError ---
-    # Uncomment these lines only if you have a valid strings.json file.
-    # _attr_has_entity_name = True 
-    # _attr_translation_key = slug
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry, slug, config, circuit_id=None):
         """Initializes the sensor.
@@ -87,6 +84,7 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
         """
         super().__init__(coordinator)
         self._slug = slug
+        self._attr_translation_key = slug
         
         # Unpack configuration from const.py
         self._unit = config[0]
@@ -95,11 +93,6 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
         
         self._entry_id = entry.entry_id
         self._circuit_id = circuit_id
-        
-        # Fallback name if translation is disabled
-        # Uses the original name from device map or the slug
-        original_name = coordinator.device.params_map.get(slug, {}).get("name", slug)
-        self._attr_name = original_name
 
     @property
     def unique_id(self) -> str:
