@@ -74,7 +74,14 @@
         "number": {
             "hdwtsetpoint": { "name": "DHW Setpoint" },
             "hdwminsettemp": { "name": "DHW Min Temp" },
-            "hdwmaxsettemp": { "name": "DHW Max Temp" }
+            "hdwmaxsettemp": { "name": "DHW Max Temp" },
+            "buforlongloadtime": { "name": "Force buffer tank loading (minutes)" },
+            "mixer2valvesetposition": { "name": "Forced valve position" },
+            "mixer3valvesetposition": { "name": "Forced valve position" },
+            "mixer4valvesetposition": { "name": "Forced valve position" },
+            "mixer5valvesetposition": { "name": "Forced valve position" },
+            "mixer6valvesetposition": { "name": "Forced valve position" },
+            "mixer7valvesetposition": { "name": "Forced valve position" }
         },
         "switch": {
             "hdwstartoneloading": {

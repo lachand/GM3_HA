@@ -151,7 +151,18 @@ CLIMATE_TYPES = {
 }
 
 NUMBER_TYPES = {
-    
+    # Force buffer tank loading for N minutes (0 = disabled)
+    # Bypasses the normal temperature comparison logic (useful for solar pre-heating)
+    "buforlongloadtime": (0, 180, 1, "mdi:timer"),
+
+    # Force mixer valve positions (0% = closed, 100% = fully open)
+    # Allows overriding the controller's automatic valve management
+    "mixer2valvesetposition": (0, 100, 1, "mdi:valve"),
+    "mixer3valvesetposition": (0, 100, 1, "mdi:valve"),
+    "mixer4valvesetposition": (0, 100, 1, "mdi:valve"),
+    "mixer5valvesetposition": (0, 100, 1, "mdi:valve"),
+    "mixer6valvesetposition": (0, 100, 1, "mdi:valve"),
+    "mixer7valvesetposition": (0, 100, 1, "mdi:valve"),
 }
 
 
