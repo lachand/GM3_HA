@@ -21,8 +21,8 @@
         "unit": "C",
         "exponent": 0,
         "name_orig": "TempBuforUp",
-        "min" : 10,
-        "max" : 100
+        "min": 10,
+        "max": 100
     },
     "tempbufordown": {
         "id": 63,
@@ -30,8 +30,8 @@
         "unit": "C",
         "exponent": 0,
         "name_orig": "TempBuforDown",
-        "min" : 10,
-        "max" : 100
+        "min": 10,
+        "max": 100
     },
     "tempclutch": {
         "id": 64,
@@ -71,8 +71,8 @@
         "unit": "",
         "exponent": 0,
         "name_orig": "TempWthr",
-        "min" : -20,
-        "max" : 50,
+        "min": -20,
+        "max": 50,
         "max_delta": 0.5
     },
     "tempsettings": {
@@ -261,7 +261,10 @@
         "unit": "",
         "exponent": 0,
         "name_orig": "HDWStartOneLoading",
-        "enum": [0,1]
+        "enum": [
+            0,
+            1
+        ]
     },
     "hdwdbstate": {
         "id": 116,
@@ -290,7 +293,11 @@
         "unit": "",
         "exponent": 0,
         "name_orig": "HDWusermode",
-        "enum": [0,1,2]
+        "enum": [
+            0,
+            1,
+            2
+        ]
     },
     "hdwsundayam": {
         "id": 120,
@@ -488,7 +495,7 @@
         "exponent": 0,
         "name_orig": "BuforsetPoint",
         "min": 20,
-        "max" : 90
+        "max": 90
     },
     "buforsettempdownhist": {
         "id": 188,
@@ -1064,7 +1071,7 @@
         "exponent": 0,
         "name_orig": "Circuit2ComfortTemp",
         "min": 5,
-        "max":30
+        "max": 30
     },
     "circuit2ecotemp": {
         "id": 289,
@@ -4164,5 +4171,40 @@
         "unit": "",
         "exponent": 0,
         "name_orig": "analog boiler control control"
+    },
+    "mixer1valveposition": {
+        "id": 265,
+        "type": "FLOAT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "Mixer1valveposition"
+    },
+    "mixer1valveopeningtime": {
+        "id": 266,
+        "type": "INT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "Mixer1valveopeningtime"
+    },
+    "mixer1valvedeadzone": {
+        "id": 267,
+        "type": "FLOAT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "Mixer1valvedeadzone"
+    },
+    "mixer1valvesetposition": {
+        "id": 268,
+        "type": "SHORT_INT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "Mixer1valvesetposition"
+    },
+    "mixer6valvesetposition": {
+        "id": 770,
+        "type": "SHORT_INT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "Mixer6valvesetposition"
     }
 }

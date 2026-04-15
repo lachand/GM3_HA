@@ -76,6 +76,7 @@
             "hdwminsettemp": { "name": "ECS Min" },
             "hdwmaxsettemp": { "name": "ECS Max" },
             "buforlongloadtime": { "name": "Forcer chargement ballon tampon (minutes)" },
+            "mixer1valvesetposition": { "name": "Position forcée vanne" },
             "mixer2valvesetposition": { "name": "Position forcée vanne" },
             "mixer3valvesetposition": { "name": "Position forcée vanne" },
             "mixer4valvesetposition": { "name": "Position forcée vanne" },

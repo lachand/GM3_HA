@@ -157,6 +157,7 @@ NUMBER_TYPES = {
 
     # Force mixer valve positions (0% = closed, 100% = fully open)
     # Allows overriding the controller's automatic valve management
+    "mixer1valvesetposition": (0, 100, 1, "mdi:valve"),
     "mixer2valvesetposition": (0, 100, 1, "mdi:valve"),
     "mixer3valvesetposition": (0, 100, 1, "mdi:valve"),
     "mixer4valvesetposition": (0, 100, 1, "mdi:valve"),
