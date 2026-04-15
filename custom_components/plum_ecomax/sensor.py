@@ -48,14 +48,18 @@ async def async_setup_entry(
         target_circuit_id = None
         # Automatic circuit detection via Regex (e.g., tempcircuit1 -> 1)
         match = re.search(r'(circuit|mixer)(\d+)', slug)
-        
+
         if match:
+            prefix = match.group(1)
             found_id = match.group(2)
-            # If it's a circuit sensor, verify if this circuit is enabled in config
-            if found_id in selected_circuits:
-                target_circuit_id = found_id
-            else:
-                continue 
+            if prefix == 'circuit':
+                # Circuit sensors: only shown if that circuit is enabled in config
+                if found_id in selected_circuits:
+                    target_circuit_id = found_id
+                else:
+                    continue
+            # Mixer sensors: always shown regardless of circuit selection,
+            # attached to the main boiler device (target_circuit_id stays None)
 
         entities.append(PlumEcomaxSensor(coordinator, entry, slug, config, target_circuit_id))
 
