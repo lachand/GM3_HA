@@ -61,6 +61,23 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         self._attr_translation_key = slug
 
     @property
+    def device_info(self) -> dict:
+        """Links the entity to the Mixers device or the main Boiler device."""
+        if self._slug.startswith("mixer"):
+            return {
+                "identifiers": {(DOMAIN, f"{self._entry_id}_mixers")},
+                "name": "Mixers",
+                "manufacturer": "Plum",
+                "model": "Mixing valves",
+                "via_device": (DOMAIN, self._entry_id),
+            }
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": "Plum EcoMAX Boiler",
+            "manufacturer": "Plum",
+        }
+
+    @property
     def unique_id(self) -> str:
         """Returns the unique ID of the entity.
 

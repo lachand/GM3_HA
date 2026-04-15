@@ -137,6 +137,14 @@ SENSOR_TYPES = {
     "mixer5valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer6valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer7valveposition": [PERCENTAGE, "mdi:valve", None],
+
+    "mixer1valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
+    "mixer2valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
+    "mixer3valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
+    "mixer4valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
+    "mixer5valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
+    "mixer6valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
+    "mixer7valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
 }
 
 # --- THERMOSTATS ---

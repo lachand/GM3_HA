@@ -69,7 +69,14 @@
             "mixer4valveposition": { "name": "Ouverture Vanne" },
             "mixer5valveposition": { "name": "Ouverture Vanne" },
             "mixer6valveposition": { "name": "Ouverture Vanne" },
-            "mixer7valveposition": { "name": "Ouverture Vanne" }
+            "mixer7valveposition": { "name": "Ouverture Vanne" },
+            "mixer1valveopeningtime": { "name": "Temps d'ouverture Vanne" },
+            "mixer2valveopeningtime": { "name": "Temps d'ouverture Vanne" },
+            "mixer3valveopeningtime": { "name": "Temps d'ouverture Vanne" },
+            "mixer4valveopeningtime": { "name": "Temps d'ouverture Vanne" },
+            "mixer5valveopeningtime": { "name": "Temps d'ouverture Vanne" },
+            "mixer6valveopeningtime": { "name": "Temps d'ouverture Vanne" },
+            "mixer7valveopeningtime": { "name": "Temps d'ouverture Vanne" }
         },
         "number": {
             "hdwtsetpoint": { "name": "Consigne ECS" },
