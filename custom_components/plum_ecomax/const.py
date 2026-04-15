@@ -109,6 +109,7 @@ SENSOR_TYPES = {
     "boilerpower": [UnitOfPower.KILO_WATT, "mdi:flash", "power"],
     "worktime": [UnitOfTime.SECONDS, "mdi:clock-outline", None],
     "tempcwu": [UnitOfTemperature.CELSIUS, "mdi:water-boiler", "temperature"],
+    "hdwpumpstate": [None, "mdi:pump", None],
     "tempbuforup": [UnitOfTemperature.CELSIUS, "mdi:water", "temperature"],
     "tempbufordown": [UnitOfTemperature.CELSIUS, "mdi:water", "temperature"],
     "tempclutch": [UnitOfTemperature.CELSIUS, "mdi:fire-alert", "temperature"],

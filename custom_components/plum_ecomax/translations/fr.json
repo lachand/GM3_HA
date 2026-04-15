@@ -45,6 +45,7 @@
             "boilerpower": { "name": "Puissance Chaudière" },
             "worktime": { "name": "Temps de travail total" },
             "tempcwu": { "name": "Température ECS" },
+            "hdwpumpstate": { "name": "Pompe ECS" },
             "tempbuforup": { "name": "Ballon Tampon (Haut)" },
             "tempbufordown": { "name": "Ballon Tampon (Bas)" },
             "tempclutch": { "name": "Température Embrayage" },

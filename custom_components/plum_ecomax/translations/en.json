@@ -45,6 +45,7 @@
             "boilerpower": { "name": "Boiler Power" },
             "worktime": { "name": "Total Work Time" },
             "tempcwu": { "name": "DHW Temperature" },
+            "hdwpumpstate": { "name": "DHW Pump" },
             "tempbuforup": { "name": "Buffer Tank (Top)" },
             "tempbufordown": { "name": "Buffer Tank (Bottom)" },
             "tempclutch": { "name": "Clutch Temperature" },

@@ -59,8 +59,12 @@ async def async_setup_entry(
                 else:
                     continue
             else:
-                # Mixer sensors: always shown, grouped under the "Mixers" device
-                target_circuit_id = "mixers"
+                # Mixer sensors: always shown, attached to the corresponding
+                # circuit device if that circuit is active, otherwise to the boiler
+                if found_id in selected_circuits:
+                    target_circuit_id = found_id
+                else:
+                    target_circuit_id = None
 
         entities.append(PlumEcomaxSensor(coordinator, entry, slug, config, target_circuit_id))
 
@@ -179,20 +183,12 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def device_info(self) -> dict:
-        """Links the sensor to the correct device (Boiler, Circuit, or Mixers).
+        """Links the sensor to the correct device (Boiler or Circuit).
 
         Returns:
             dict: The device info dictionary.
         """
-        if self._circuit_id == "mixers":
-            return {
-                "identifiers": {(DOMAIN, f"{self._entry_id}_mixers")},
-                "name": "Mixers",
-                "manufacturer": "Plum",
-                "model": "Mixing valves",
-                "via_device": (DOMAIN, self._entry_id),
-            }
-        elif self._circuit_id:
+        if self._circuit_id:
             return {
                 "identifiers": {(DOMAIN, f"{self._entry_id}_circuit_{self._circuit_id}")},
                 "name": f"Circuit {self._circuit_id}",

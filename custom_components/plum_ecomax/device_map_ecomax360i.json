@@ -4206,5 +4206,12 @@
         "unit": "",
         "exponent": 0,
         "name_orig": "Mixer6valvesetposition"
+    },
+    "hdwpumpstate": {
+        "id": 106,
+        "type": "SHORT_INT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "HDWPumpState"
     }
 }
