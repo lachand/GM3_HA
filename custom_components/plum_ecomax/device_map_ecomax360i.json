@@ -474,6 +474,13 @@
         "exponent": 0,
         "name_orig": "dhw mode"
     },
+    "hdwpumpforce": {
+        "id": 172,
+        "type": "LONG_INT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "HDWPumpForce"
+    },
     "buforsettings": {
         "id": 181,
         "type": "LONG_INT",

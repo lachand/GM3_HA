@@ -34,10 +34,11 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
 
-    for slug, name in SWITCH_TYPES.items():
+    for slug, cfg in SWITCH_TYPES.items():
+        name, on_value, off_value = cfg
         # We only create the entity if the parameter exists on the device
         if slug in coordinator.device.params_map:
-            entities.append(PlumEconetSwitch(coordinator, slug, name))
+            entities.append(PlumEconetSwitch(coordinator, slug, name, on_value, off_value))
         else:
             _LOGGER.debug(f"Switch '{slug}' not found in device map, skipping.")
 
@@ -52,53 +53,27 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
     """
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, slug: str, name: str):
-        """Initializes the switch entity.
-
-        Args:
-            coordinator: The data update coordinator.
-            slug: The parameter identifier string.
-            name: The friendly name of the switch.
-        """
+    def __init__(self, coordinator, slug: str, name: str, on_value: int = 1, off_value: int = 0):
         super().__init__(coordinator)
         self._slug = slug
         self._log_name = name
+        self._on_value = on_value
+        self._off_value = off_value
         self._attr_translation_key = slug
         self._attr_unique_id = f"{DOMAIN}_{slug}"
 
     @property
     def is_on(self) -> bool:
-        """Checks if the switch is currently on.
-
-        Returns:
-            bool: True if the parameter value is 1, False otherwise.
-        """
         val = self.coordinator.data.get(self._slug)
         try:
-            return int(val) == 1
+            return int(val) == self._on_value
         except (ValueError, TypeError):
             return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turns the switch on.
-
-        Writes '1' to the corresponding device parameter and updates the
-        local cache immediately.
-
-        Args:
-            **kwargs: Keyword arguments (unused).
-        """
-        _LOGGER.info(f"Turning ON {self._log_name} ({self._slug})")
-        await self.coordinator.async_set_value(self._slug, 1)
+        _LOGGER.info(f"Turning ON {self._log_name} ({self._slug}) → {self._on_value}")
+        await self.coordinator.async_set_value(self._slug, self._on_value)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turns the switch off.
-
-        Writes '0' to the corresponding device parameter and updates the
-        local cache immediately.
-
-        Args:
-            **kwargs: Keyword arguments (unused).
-        """
-        _LOGGER.info(f"Turning OFF {self._log_name} ({self._slug})")
-        await self.coordinator.async_set_value(self._slug, 0)
+        _LOGGER.info(f"Turning OFF {self._log_name} ({self._slug}) → {self._off_value}")
+        await self.coordinator.async_set_value(self._slug, self._off_value)

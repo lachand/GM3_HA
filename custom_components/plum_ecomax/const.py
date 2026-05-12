@@ -31,7 +31,10 @@ from homeassistant.const import (
 # --- CONFIGURATION SWITCH (ON/OFF) ---
 # Format: "slug": "Friendly Name"
 SWITCH_TYPES = {
-    "hdwstartoneloading": "Force DHW reload",
+    # Format: "slug": (friendly_name, on_value, off_value)
+    "hdwstartoneloading": ("Force DHW reload", 1, 0),
+    # 0x200 = bit 9 levé = marche forcée pompe ECS vers ballon solaire (ID 172)
+    "hdwpumpforce": ("Force pompe ECS → ballon solaire", 512, 0),
 }
 
 # --- CONFIGURATION SELECT (DROPDOWN) ---
