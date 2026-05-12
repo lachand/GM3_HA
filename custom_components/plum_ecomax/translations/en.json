@@ -43,7 +43,6 @@
         "sensor": {
             "tempwthr": { "name": "Outside Temperature" },
             "boilerpower": { "name": "Boiler Power" },
-            "worktime": { "name": "Total Work Time" },
             "tempcwu": { "name": "DHW Temperature" },
             "hdwpumpstate": { "name": "DHW Pump" },
             "tempbuforup": { "name": "Buffer Tank (Top)" },
@@ -71,26 +70,12 @@
             "mixer5valveposition": { "name": "Valve Opening" },
             "mixer6valveposition": { "name": "Valve Opening" },
             "mixer7valveposition": { "name": "Valve Opening" },
-            "mixer1valveopeningtime": { "name": "Valve Opening Time" },
-            "mixer2valveopeningtime": { "name": "Valve Opening Time" },
-            "mixer3valveopeningtime": { "name": "Valve Opening Time" },
-            "mixer4valveopeningtime": { "name": "Valve Opening Time" },
-            "mixer5valveopeningtime": { "name": "Valve Opening Time" },
-            "mixer6valveopeningtime": { "name": "Valve Opening Time" },
-            "mixer7valveopeningtime": { "name": "Valve Opening Time" }
         },
         "number": {
             "hdwtsetpoint": { "name": "DHW Setpoint" },
             "hdwminsettemp": { "name": "DHW Min Temp" },
             "hdwmaxsettemp": { "name": "DHW Max Temp" },
             "buforlongloadtime": { "name": "Force buffer tank loading (minutes)" },
-            "mixer1valvesetposition": { "name": "Forced valve position" },
-            "mixer2valvesetposition": { "name": "Forced valve position" },
-            "mixer3valvesetposition": { "name": "Forced valve position" },
-            "mixer4valvesetposition": { "name": "Forced valve position" },
-            "mixer5valvesetposition": { "name": "Forced valve position" },
-            "mixer6valvesetposition": { "name": "Forced valve position" },
-            "mixer7valvesetposition": { "name": "Forced valve position" }
         },
         "switch": {
             "hdwstartoneloading": {

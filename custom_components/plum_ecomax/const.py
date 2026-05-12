@@ -110,7 +110,6 @@ UPDATE_INTERVAL = 30
 SENSOR_TYPES = {
     "tempwthr": [UnitOfTemperature.CELSIUS, "mdi:thermometer", "temperature"],
     "boilerpower": [UnitOfPower.KILO_WATT, "mdi:flash", "power"],
-    "worktime": [UnitOfTime.SECONDS, "mdi:clock-outline", None],
     "tempcwu": [UnitOfTemperature.CELSIUS, "mdi:water-boiler", "temperature"],
     "hdwpumpstate": [None, "mdi:pump", None],
     "tempbuforup": [UnitOfTemperature.CELSIUS, "mdi:water", "temperature"],
@@ -142,13 +141,6 @@ SENSOR_TYPES = {
     "mixer6valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer7valveposition": [PERCENTAGE, "mdi:valve", None],
 
-    "mixer1valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
-    "mixer2valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
-    "mixer3valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
-    "mixer4valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
-    "mixer5valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
-    "mixer6valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
-    "mixer7valveopeningtime": [UnitOfTime.SECONDS, "mdi:timer-outline", None],
 }
 
 # --- THERMOSTATS ---
@@ -167,15 +159,6 @@ NUMBER_TYPES = {
     # Bypasses the normal temperature comparison logic (useful for solar pre-heating)
     "buforlongloadtime": (0, 180, 1, "mdi:timer"),
 
-    # Force mixer valve positions (0% = closed, 100% = fully open)
-    # Allows overriding the controller's automatic valve management
-    "mixer1valvesetposition": (0, 100, 1, "mdi:valve"),
-    "mixer2valvesetposition": (0, 100, 1, "mdi:valve"),
-    "mixer3valvesetposition": (0, 100, 1, "mdi:valve"),
-    "mixer4valvesetposition": (0, 100, 1, "mdi:valve"),
-    "mixer5valvesetposition": (0, 100, 1, "mdi:valve"),
-    "mixer6valvesetposition": (0, 100, 1, "mdi:valve"),
-    "mixer7valvesetposition": (0, 100, 1, "mdi:valve"),
 }
 
 
