@@ -9,10 +9,13 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, SWITCH_TYPES
+
+HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce"}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +64,17 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
         self._off_value = off_value
         self._attr_translation_key = slug
         self._attr_unique_id = f"{DOMAIN}_{slug}"
+
+    @property
+    def device_info(self) -> DeviceInfo | None:
+        if self._slug in HDW_SWITCHES:
+            return DeviceInfo(
+                identifiers={(DOMAIN, "plum_hdw")},
+                name="DHW",
+                manufacturer="Plum",
+                model="DHW Manager",
+            )
+        return None
 
     @property
     def is_on(self) -> bool:
