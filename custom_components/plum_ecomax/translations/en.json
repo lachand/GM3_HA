@@ -69,13 +69,13 @@
             "mixer4valveposition": { "name": "Valve Opening" },
             "mixer5valveposition": { "name": "Valve Opening" },
             "mixer6valveposition": { "name": "Valve Opening" },
-            "mixer7valveposition": { "name": "Valve Opening" },
+            "mixer7valveposition": { "name": "Valve Opening" }
         },
         "number": {
             "hdwtsetpoint": { "name": "DHW Setpoint" },
             "hdwminsettemp": { "name": "DHW Min Temp" },
             "hdwmaxsettemp": { "name": "DHW Max Temp" },
-            "buforlongloadtime": { "name": "Force buffer tank loading (minutes)" },
+            "buforlongloadtime": { "name": "Force buffer tank loading (minutes)" }
         },
         "switch": {
             "hdwstartoneloading": {

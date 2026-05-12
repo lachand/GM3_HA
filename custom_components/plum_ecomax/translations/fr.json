@@ -69,13 +69,13 @@
             "mixer4valveposition": { "name": "Ouverture Vanne" },
             "mixer5valveposition": { "name": "Ouverture Vanne" },
             "mixer6valveposition": { "name": "Ouverture Vanne" },
-            "mixer7valveposition": { "name": "Ouverture Vanne" },
+            "mixer7valveposition": { "name": "Ouverture Vanne" }
         },
         "number": {
             "hdwtsetpoint": { "name": "Consigne ECS" },
             "hdwminsettemp": { "name": "ECS Min" },
             "hdwmaxsettemp": { "name": "ECS Max" },
-            "buforlongloadtime": { "name": "Forcer chargement ballon tampon (minutes)" },
+            "buforlongloadtime": { "name": "Forcer chargement ballon tampon (minutes)" }
         },
         "switch": {
             "hdwstartoneloading": {
