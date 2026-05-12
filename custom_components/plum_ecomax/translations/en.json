@@ -95,6 +95,9 @@
         "switch": {
             "hdwstartoneloading": {
                 "name": "Force DHW reload"
+            },
+            "hdwpumpforce": {
+                "name": "DHW pump → Solar buffer"
             }
         },
         "select": {
