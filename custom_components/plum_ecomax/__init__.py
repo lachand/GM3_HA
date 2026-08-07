@@ -9,6 +9,7 @@ import os
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT
+from homeassistant.exceptions import ConfigEntryNotReady
 from .const import DOMAIN, DEFAULT_PORT
 from .coordinator import PlumDataUpdateCoordinator
 from .plum_device import PlumDevice
@@ -50,8 +51,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     json_path = hass.config.path(f"custom_components/{DOMAIN}/{filename}")
     
     device = PlumDevice(ip, port=port, password=password, map_file=json_path)
-    
-    await asyncio.to_thread(device.load_map)
+
+    try:
+        await asyncio.to_thread(device.load_map)
+    except Exception as err:
+        raise ConfigEntryNotReady(
+            f"Could not load parameter map {json_path}: {err}"
+        ) from err
 
     coordinator = PlumDataUpdateCoordinator(hass, device)
     

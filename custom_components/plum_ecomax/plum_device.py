@@ -25,6 +25,20 @@ DEST_ID = 1
 SOURCE_ID = 100
 CMD_READ_VAL = 0x43
 CMD_WRITE_FORCE = 0x29
+CMD_READ_RESP = CMD_READ_VAL | 0x80
+CMD_WRITE_RESP = CMD_WRITE_FORCE | 0x80
+WRITE_RESULT_OK = 0xE5
+START_BYTE = 0x68
+STOP_BYTE = 0x16
+
+# Wire size of a decoded value per type (spec 1.4.2), used to walk batched
+# multi-parameter responses without a length prefix per value.
+VALUE_BYTE_LEN = {
+    "BYTE": 1, "SHORT_INT": 1,
+    "WORD": 2, "INT": 2,
+    "DWORD": 4, "LONG_INT": 4, "FLOAT": 4,
+}
+DEFAULT_BATCH_SIZE = 16
 
 class PlumDevice:
     """Handles low-level communication with the Plum EcoMAX boiler.
@@ -50,18 +64,26 @@ class PlumDevice:
         self.map_file = map_file
         self.params_map: Dict[str, Any] = {}
         self.session_id = 10
-        self._data_cache = {} 
+        self._data_cache = {}
+        # Serializes all socket transactions so a background write and a
+        # polling read never open concurrent TCP connections to the boiler.
+        self._io_lock = asyncio.Lock()
 
     def load_map(self):
         """Loads the parameter definition map from the JSON file.
 
         The map file defines the ID, type, and exponent for each parameter slug.
+
+        Raises:
+            OSError: If the map file can't be read.
+            ValueError: If the map file isn't valid JSON.
         """
         try:
             with open(self.map_file, 'r') as f:
                 self.params_map = json.load(f)
         except Exception as e:
-            logger.error(f"Error loading map: {e}")
+            logger.error("Error loading map from %s: %s", self.map_file, e)
+            raise
 
     # --- ENCODING / DECODING ---
     def _encode(self, value: Any, param_def: dict) -> bytes:
@@ -82,10 +104,17 @@ class PlumDevice:
             value = int(round(value / (10 ** exp)))
 
         try:
+            # Struct formats per spec 1.4.2: BYTE/WORD/DWORD are unsigned,
+            # SHORT_INT/INT/LONG_INT are signed. RAW is spec's STRING type
+            # ("a sequence of characters followed by byte 00").
             if ptype == "FLOAT": return struct.pack("<f", float(value))
-            elif ptype in ["BYTE", "SHORT_INT", "BOOL"]: return struct.pack("B", int(value))
-            elif ptype in ["INT", "WORD"]: return struct.pack("<h", int(value))
-            elif ptype in ["DWORD", "LONG_INT"]: return struct.pack("<i", int(value))
+            elif ptype == "BYTE": return struct.pack("B", int(value))
+            elif ptype == "SHORT_INT": return struct.pack("<b", int(value))
+            elif ptype == "WORD": return struct.pack("<H", int(value))
+            elif ptype == "INT": return struct.pack("<h", int(value))
+            elif ptype == "DWORD": return struct.pack("<I", int(value))
+            elif ptype == "LONG_INT": return struct.pack("<i", int(value))
+            elif ptype == "RAW": return str(value).encode("utf-8") + b"\x00"
             return None
         except: return None
 
@@ -106,12 +135,20 @@ class PlumDevice:
             if ptype == "FLOAT" and len(data) >= 4:
                 val = struct.unpack("<f", data[:4])[0]
                 val = round(val, 2)
-            elif ptype in ["BYTE", "SHORT_INT", "BOOL"] and len(data) >= 1:
+            elif ptype == "BYTE" and len(data) >= 1:
                 val = data[0]
-            elif ptype in ["INT", "WORD"] and len(data) >= 2:
+            elif ptype == "SHORT_INT" and len(data) >= 1:
+                val = struct.unpack("<b", data[:1])[0]
+            elif ptype == "WORD" and len(data) >= 2:
+                val = struct.unpack("<H", data[:2])[0]
+            elif ptype == "INT" and len(data) >= 2:
                 val = struct.unpack("<h", data[:2])[0]
-            elif ptype in ["DWORD", "LONG_INT"] and len(data) >= 4:
+            elif ptype == "DWORD" and len(data) >= 4:
+                val = struct.unpack("<I", data[:4])[0]
+            elif ptype == "LONG_INT" and len(data) >= 4:
                 val = struct.unpack("<i", data[:4])[0]
+            elif ptype == "RAW":
+                val = data.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
 
             if val is not None and isinstance(val, (int, float)) and exp != 0:
                 val = val * (10 ** exp)
@@ -137,15 +174,85 @@ class PlumDevice:
         if not param: return None
         pid = param['id']
 
-        for attempt in range(1, retries + 1):
-            val = await asyncio.to_thread(self._sync_get_value, pid, param)
-            if val is not None:
-                self._data_cache[slug] = val  # Caching
-                return val
-            await asyncio.sleep(0.2 * attempt)
-        
+        async with self._io_lock:
+            for attempt in range(1, retries + 1):
+                val = await asyncio.to_thread(self._sync_get_value, pid, param)
+                if val is not None:
+                    self._data_cache[slug] = val  # Caching
+                    return val
+                await asyncio.sleep(0.2 * attempt)
+
         # Returns the last known value on failure
         return self._data_cache.get(slug)
+
+    async def get_values(
+        self, slugs: list, retries: int = 2, batch_size: int = DEFAULT_BATCH_SIZE
+    ) -> Dict[str, Any]:
+        """Asynchronously fetches several parameter values in as few frames as possible.
+
+        Spec 1.5.3.12 (cmd 0x43) allows multiple parameter blocks in a
+        single request/response, so this avoids opening one TCP connection
+        per parameter for a whole polling cycle.
+
+        Args:
+            slugs: Parameter slugs to fetch.
+            retries: Attempts per batch before giving up on the missing ones.
+            batch_size: Max parameters requested in a single frame.
+
+        Returns:
+            Dict[str, Any]: Decoded value per slug that was successfully
+            read. Slugs missing from the result mean the read failed for
+            that parameter — callers should fall back to their own cache,
+            same as a failed get_value() call.
+        """
+        items = []
+        raw_slugs = []
+        slug_by_pid: Dict[int, str] = {}
+        for slug in slugs:
+            param = self.params_map.get(slug)
+            if not param:
+                continue
+            # RAW (spec's STRING type) is variable-length with no size
+            # prefix on the wire -- _sync_get_values_batch can't know where
+            # it ends without decoding it, which would break walking any
+            # block that follows it in the same multi-block response. Read
+            # these individually instead of batching them.
+            if param.get("type") == "RAW":
+                raw_slugs.append(slug)
+                continue
+            pid = param["id"]
+            items.append((pid, param))
+            slug_by_pid[pid] = slug
+
+        results: Dict[str, Any] = {}
+        async with self._io_lock:
+            for i in range(0, len(items), batch_size):
+                chunk = items[i:i + batch_size]
+                for attempt in range(1, retries + 1):
+                    values = await asyncio.to_thread(self._sync_get_values_batch, chunk)
+                    for pid, val in values.items():
+                        if val is None:
+                            continue
+                        slug = slug_by_pid.get(pid)
+                        if slug:
+                            results[slug] = val
+                            self._data_cache[slug] = val
+                    if len(values) >= len(chunk):
+                        break
+                    await asyncio.sleep(0.2 * attempt)
+
+            for slug in raw_slugs:
+                param = self.params_map[slug]
+                pid = param["id"]
+                for attempt in range(1, retries + 1):
+                    val = await asyncio.to_thread(self._sync_get_value, pid, param)
+                    if val is not None:
+                        results[slug] = val
+                        self._data_cache[slug] = val
+                        break
+                    await asyncio.sleep(0.2 * attempt)
+
+        return results
 
     async def set_value(self, slug: str, value: Any, password: str = None, user: str = None) -> bool:
         """Asynchronously writes a parameter value.
@@ -174,10 +281,11 @@ class PlumDevice:
         pass_bytes = (target_pass.encode('utf-8') + b'\x00') if target_pass else b'\x00'
         full_payload = user_bytes + pass_bytes + b'\x01' + struct.pack("<H", pid) + encoded
 
-        for attempt in range(1, 4):
-            if await asyncio.to_thread(self._sync_set_value, pid, full_payload):
-                return True
-            await asyncio.sleep(1.0)
+        async with self._io_lock:
+            for attempt in range(1, 4):
+                if await asyncio.to_thread(self._sync_set_value, pid, full_payload):
+                    return True
+                await asyncio.sleep(1.0)
         return False
 
     # --- SYNC WORKERS ---
@@ -186,19 +294,114 @@ class PlumDevice:
         self.session_id = (self.session_id + 1) % 65000
         payload = struct.pack("<HB BH", self.session_id, 1, 1, pid)
         frame = self._build_frame(CMD_READ_VAL, payload)
-        resp = self._socket_transaction(frame)
-        
-        if resp and len(resp) > 7:
-            # Simple extraction without extensive verification for the example
-            return self._decode(resp[7:], param)
-        return None
+        result = self._socket_transaction(frame)
+        if result is None:
+            return None
+
+        func, resp = result
+        if func != CMD_READ_RESP or len(resp) < 7:
+            logger.debug(f"Unexpected read response for pid={pid}: func=0x{func:02X} len={len(resp)}")
+            return None
+
+        # Data layout (spec 1.5.3.12): session(2) nblocks(1) nparams(1) pid(2) status(1) value(n)
+        resp_pid = struct.unpack("<H", resp[4:6])[0]
+        if resp_pid != pid:
+            logger.debug(f"PID mismatch for read: requested {pid}, device answered {resp_pid}")
+            return None
+
+        return self._decode(resp[7:], param)
 
     def _sync_set_value(self, pid: int, payload: bytes) -> bool:
         """Blocking worker to write a value."""
         self.session_id = (self.session_id + 1) % 65000
         frame = self._build_frame(CMD_WRITE_FORCE, payload)
-        resp = self._socket_transaction(frame)
-        return resp is not None
+        result = self._socket_transaction(frame)
+        if result is None:
+            return False
+
+        func, resp = result
+        if func != CMD_WRITE_RESP:
+            logger.warning("Unexpected write response for pid=%s: func=0x%02X", pid, func)
+            return False
+
+        # Data layout per spec 1.5.3.10: a single result code (0xE5=OK /
+        # 0x7D=auth error / 0x7F=error). Confirmed against real hardware
+        # (2026-08-07) that this firmware instead ACKs a successful write
+        # with an *empty* data field (l_val=5, no code byte at all) rather
+        # than an explicit 0xE5 -- treat that as success too. Only reject
+        # when a code byte is actually present and isn't 0xE5, so firmware
+        # that does send explicit error codes is still caught.
+        if len(resp) >= 1 and resp[0] != WRITE_RESULT_OK:
+            logger.warning("Write rejected by device for pid=%s: result code 0x%02X", pid, resp[0])
+            return False
+
+        return True
+
+    def _sync_get_values_batch(self, items: list) -> Dict[int, Any]:
+        """Blocking worker to fetch several values in a single frame.
+
+        Builds one block per requested pid (spec 1.5.3.12), each holding
+        exactly one parameter, so the response mirrors the request
+        block-for-block and each value's byte width can be looked up from
+        our own params_map instead of relying on a length prefix on the wire.
+
+        Args:
+            items: List of (pid, param_def) tuples, in request order.
+
+        Returns:
+            Dict[int, Any]: Decoded value per pid that was successfully
+            parsed. Missing pids mean a parse/response failure for that
+            parameter specifically, or the whole batch failed.
+        """
+        if not items:
+            return {}
+
+        self.session_id = (self.session_id + 1) % 65000
+        header = struct.pack("<HB", self.session_id, len(items))
+        blocks = b"".join(struct.pack("<BH", 1, pid) for pid, _ in items)
+        frame = self._build_frame(CMD_READ_VAL, header + blocks)
+
+        result = self._socket_transaction(frame, timeout=3.0)
+        if result is None:
+            return {}
+
+        func, resp = result
+        if func != CMD_READ_RESP or len(resp) < 3:
+            logger.debug(f"Unexpected batch read response: func=0x{func:02X}")
+            return {}
+
+        resp_session = struct.unpack("<H", resp[0:2])[0]
+        if resp_session != self.session_id:
+            logger.debug(f"Batch session mismatch: sent {self.session_id}, got {resp_session}")
+            return {}
+
+        n_blocks = resp[2]
+        values: Dict[int, Any] = {}
+        offset = 3
+        for _ in range(n_blocks):
+            if offset + 3 > len(resp):
+                break  # truncated response, stop trusting what's left
+            n_params = resp[offset]
+            first_pid = struct.unpack("<H", resp[offset + 1:offset + 3])[0]
+            offset += 3
+
+            param_def = next((p for pid, p in items if pid == first_pid), None)
+            if n_params != 1 or param_def is None:
+                # We only ever request one param per block; anything else
+                # means we can't reliably know this block's value width.
+                logger.debug(f"Unexpected block shape (n_params={n_params}, pid={first_pid}) in batch read")
+                break
+
+            value_len = VALUE_BYTE_LEN.get(param_def["type"], 4)
+            if offset + 1 + value_len > len(resp):
+                break  # truncated mid-block, stop here with what we have
+
+            status = resp[offset]
+            raw = resp[offset + 1: offset + 1 + value_len]
+            offset += 1 + value_len
+            values[first_pid] = self._decode(raw, param_def)
+
+        return values
 
     def _build_frame(self, cmd, payload):
         """Constructs the full binary frame (Header + Body + CRC)."""
@@ -220,34 +423,90 @@ class PlumDevice:
                 crc &= 0xFFFF
         return crc
 
-    def _socket_transaction(self, frame: bytes) -> Optional[bytes]:
+    def _socket_transaction(self, frame: bytes, timeout: float = 2.0) -> Optional[tuple]:
         """Executes a raw TCP transaction (Connect -> Send -> Receive -> Close).
 
         Args:
             frame: The binary frame to send.
+            timeout: Socket timeout, in seconds.
 
         Returns:
-            bytes: The response payload if successful, None otherwise.
+            Optional[tuple[int, bytes]]: (func, payload) of the first
+            structurally valid response frame, or None on timeout/error.
         """
         sock = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2.0)
+            sock.settimeout(timeout)
             sock.connect((self.ip, self.port))
             sock.send(frame)
-            
+
             buffer = bytearray()
-            start = time.time()
-            while time.time() - start < 2.0:
-                chunk = sock.recv(1024)
-                if not chunk: break
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                sock.settimeout(max(deadline - time.time(), 0.01))
+                try:
+                    chunk = sock.recv(1024)
+                except socket.timeout:
+                    break
+                if not chunk:
+                    break
                 buffer.extend(chunk)
-                if b'\x68' in buffer and buffer.endswith(b'\x16'):
-                     # Simplified search for header 0x68
-                     idx = buffer.find(b'\x68')
-                     return buffer[idx+8:-3] # Returns payload
+
+                result = self._extract_valid_frame(buffer)
+                if result is not None:
+                    return result
             return None
-        except:
+        except OSError as e:
+            logger.debug(f"Socket transaction failed: {e}")
             return None
         finally:
             if sock: sock.close()
+
+    def _extract_valid_frame(self, buffer: bytearray) -> Optional[tuple]:
+        """Scans a buffer for the first structurally valid response frame.
+
+        Rejects candidates with an inconsistent length, a bad CRC, a wrong
+        stop byte, or a source address other than the boiler, instead of
+        trusting the first '0x68 ... 0x16' shape found in the buffer.
+
+        Args:
+            buffer: The accumulated bytes read from the socket so far.
+
+        Returns:
+            Optional[tuple[int, bytes]]: (func, payload), or None if no
+            complete valid frame is present yet (more data may still arrive).
+        """
+        i = 0
+        while i < len(buffer):
+            if buffer[i] != START_BYTE:
+                i += 1
+                continue
+            if i + 3 > len(buffer):
+                return None  # header incomplete, wait for more data
+
+            l_val = struct.unpack("<H", bytes(buffer[i + 1:i + 3]))[0]
+            if l_val < 5 or l_val > 4096:
+                i += 1
+                continue
+
+            frame_len = l_val + 6  # 0x68 + L(2) + body(l_val) + CRC(2) + 0x16
+            if i + frame_len > len(buffer):
+                return None  # frame incomplete, wait for more data
+
+            candidate = bytes(buffer[i:i + frame_len])
+            body = candidate[1:1 + 2 + l_val]  # CRC covers L + Dest + Src + Func + Data
+            received_crc = struct.unpack(">H", candidate[-3:-1])[0]
+
+            if candidate[-1] != STOP_BYTE or self._crc16(body) != received_crc:
+                i += 1
+                continue
+
+            src = struct.unpack("<H", candidate[5:7])[0]
+            if src != DEST_ID:
+                i += frame_len
+                continue
+
+            return candidate[7], candidate[8:-3]  # (func, payload)
+
+        return None

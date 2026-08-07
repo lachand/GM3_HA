@@ -11,7 +11,7 @@ import asyncio
 import struct
 import logging
 from typing import Optional, List
-from .plum_utils import BoilerFrame, START_BYTE, STOP_BYTE, compute_crc16
+from .plum_protocol import BoilerFrame, START_BYTE, STOP_BYTE, compute_crc16
 
 logger = logging.getLogger(__name__)
 
