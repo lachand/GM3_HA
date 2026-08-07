@@ -16,8 +16,15 @@ Once installed via HACS, you can set up the integration via the Home Assistant g
 This integration aims to support the primary functions of the ecoMAX controller:
 
 * **Monitoring:** Read current temperatures (feeder, boiler, outside, etc.), boiler status, and fuel consumption.
-* **Control:** Adjust target temperatures and operation modes.
-* **Sensors:** Binary sensors for errors, pumps, and fan status.
+* **Control:** Adjust target temperatures and operation modes, per-circuit heating curves, and the DHW anti-legionella cycle.
+* **Sensors:** Binary sensors for errors, pumps, and fan status, plus the boiler's serial number (shown on the device page) and any circuit names configured on the physical panel.
+* **Batched polling:** Several parameters are read per network request instead of one connection per value, for faster and more reliable updates.
+* **Diagnostics:** Downloadable diagnostics snapshot from the device page (Settings → Devices & Services → Plum EcoMAX → Download diagnostics).
+* **Reconfigurable:** IP address, port, credentials, and active circuits can be changed later via **Reconfigure** on the integration, without deleting and re-adding it.
+
+### ⚠️ A note on "force" parameters
+
+Switches like *Force pompe ECS → ballon solaire* write the same parameter the boiler's own front panel uses, but the boiler only applies it while the **physical panel is in manual mode**. This is a limitation of the boiler's firmware, not of this integration — outside manual mode, the boiler's automatic control silently overrides the forced value.
 
 ## 📦 Installation
 
@@ -41,6 +48,14 @@ Configuration is done via the **User Interface (Config Flow)**.
 You will need to provide:
 * **IP Address:** The local IP address of your ecoMAX module.
 * **Port:** The port used for communication (default usually 8899).
+* **Username / Password:** Admin credentials for the boiler.
+* **Active Heating Circuits:** Only the circuits you select here get entities — unused circuits (1-7) in the boiler's parameter catalog are skipped.
+
+Any of these can be changed later via **Reconfigure** on the integration card, without removing it.
+
+## 🧪 Development
+
+Unit and regression tests live in `tests/` (`pytest tests/`), and run automatically in CI on every push/PR alongside `hassfest` and HACS validation. See `IMPROVEMENT_PLAN.md` for the history of fixes and `DP_INVENTORY.md` for the catalog of boiler parameters not yet exposed as entities.
 
 ## ⚠️ Disclaimer
 

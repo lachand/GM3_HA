@@ -47,3 +47,5 @@ nav:
       - Switch: reference/switch.md
       - Number: reference/number.md
       - Select: reference/select.md
+      - Device (registry): reference/device.md
+      - Diagnostics: reference/diagnostics.md
