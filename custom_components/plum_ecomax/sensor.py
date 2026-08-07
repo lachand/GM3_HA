@@ -16,6 +16,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, SENSOR_TYPES, CONF_ACTIVE_CIRCUITS
+from .device import boiler_device_info, circuit_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -189,15 +190,5 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
             dict: The device info dictionary.
         """
         if self._circuit_id:
-            return {
-                "identifiers": {(DOMAIN, f"{self._entry_id}_circuit_{self._circuit_id}")},
-                "name": f"Circuit {self._circuit_id}",
-                "manufacturer": "Plum",
-                "via_device": (DOMAIN, self._entry_id),
-            }
-        else:
-            return {
-                "identifiers": {(DOMAIN, self._entry_id)},
-                "name": "Plum EcoMAX Boiler",
-                "manufacturer": "Plum",
-            }
+            return circuit_device_info(self._entry_id, self._circuit_id)
+        return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))

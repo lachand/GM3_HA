@@ -31,12 +31,19 @@ def mock_entry():
 
 def test_calendar_init_circuit(mock_coordinator, mock_entry):
     calendar = PlumEconetCalendar(mock_coordinator, mock_entry, "circuit", 1)
-    assert calendar.name == "Calendar Circuit 1"
+    # Naming now comes from has_entity_name + translation_key (like every
+    # other platform here), composed with the device name by HA itself --
+    # not a plain _attr_name, so it can't be asserted without a real
+    # translation-loading hass. See test_unique_id_stability.py /
+    # test_device_info_scoping.py for the device_info + unique_id coverage.
+    assert calendar._attr_has_entity_name is True
+    assert calendar._attr_translation_key == "schedule"
     assert calendar.unique_id == f"{DOMAIN}_test_entry_id_calendar_circuit_1"
 
 def test_calendar_init_hdw(mock_coordinator, mock_entry):
     calendar = PlumEconetCalendar(mock_coordinator, mock_entry, "hdw", 0)
-    assert calendar.name == "DHW Calendar"
+    assert calendar._attr_has_entity_name is True
+    assert calendar._attr_translation_key == "schedule"
     assert calendar.unique_id == f"{DOMAIN}_test_entry_id_calendar_hdw"
 
 @pytest.mark.asyncio

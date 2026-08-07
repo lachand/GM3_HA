@@ -17,6 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_ACTIVE_CIRCUITS
+from .device import circuit_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -102,13 +103,7 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
         Returns:
             dict: Device info dictionary.
         """
-        return {
-            "identifiers": {(DOMAIN, f"{self._entry_id}_circuit_{self._circuit_id}")},
-            "name": f"Circuit {self._circuit_id}",
-            "manufacturer": "Plum",
-            "model": "Heating controller",
-            "via_device": (DOMAIN, self._entry_id),
-        }
+        return circuit_device_info(self._entry_id, self._circuit_id)
 
     @property
     def min_temp(self): 

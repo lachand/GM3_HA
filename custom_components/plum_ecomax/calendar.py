@@ -10,6 +10,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, WEEKDAY_TO_SLUGS, CONF_ACTIVE_CIRCUITS
+from .device import circuit_device_info, hdw_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
     heating circuits and domestic hot water (DHW).
     """
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "schedule"
+
     def __init__(self, coordinator, entry, system_type: str, index: int):
         """Initializes the calendar entity.
 
@@ -65,10 +69,8 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         self._event = None
 
         if self._system_type == "circuit":
-            self._attr_name = f"Calendar Circuit {index}"
             self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_calendar_circuit_{index}"
         else:
-            self._attr_name = "DHW Calendar"
             self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_calendar_hdw"
 
     @property
@@ -204,17 +206,5 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
             DeviceInfo: Configuration to link this entity to a circuit or HDW device.
         """
         if self._system_type == "circuit":
-            return DeviceInfo(
-                identifiers={(DOMAIN, f"{self._entry_id}_circuit_{self._index}")},
-                name=f"Circuit {self._index}",
-                manufacturer="Plum",
-                via_device=(DOMAIN, self._entry_id),
-            )
-        else:
-            return DeviceInfo(
-                identifiers={(DOMAIN, "plum_hdw")},
-                name="HDW",
-                manufacturer="Plum",
-                model="HDW Monitor",
-                via_device=(DOMAIN, self._entry_id),
-            )
+            return circuit_device_info(self._entry_id, self._index)
+        return hdw_device_info(self._entry_id)

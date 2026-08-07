@@ -22,11 +22,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import (
-    DOMAIN, 
-    WATER_HEATER_TYPES, 
-    PLUM_TO_HA_WATER_HEATER, 
+    DOMAIN,
+    WATER_HEATER_TYPES,
+    PLUM_TO_HA_WATER_HEATER,
     HA_TO_PLUM_WATER_HEATER
 )
+from .device import hdw_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,20 +58,20 @@ async def async_setup_entry(
         has_target = target_temp in coordinator.device.params_map
         
         if has_current and has_target:
-            _LOGGER.info(f"✅ Creating Water Heater '{key}' (Parameters found).")
+            _LOGGER.info("Creating Water Heater '%s' (parameters found).", key)
             entities.append(
                 PlumEcomaxWaterHeater(
-                    coordinator, 
-                    key, 
+                    coordinator,
+                    entry.entry_id,
+                    key,
                     current_temp, target_temp, min_temp, max_temp, mode_slug
                 )
             )
         else:
             _LOGGER.error(
-                f"❌ Failed to create Water Heater '{key}'. "
-                f"Missing parameters in device_map.json: "
-                f"Temp='{current_temp}' (Present={has_current}), "
-                f"Target='{target_temp}' (Present={has_target})"
+                "Failed to create Water Heater '%s'. Missing parameters in "
+                "device_map.json: Temp='%s' (present=%s), Target='%s' (present=%s)",
+                key, current_temp, has_current, target_temp, has_target,
             )
 
     async_add_entities(entities)
@@ -96,11 +97,12 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     # Supported modes (Off, Performance=Manual, Eco=Auto)
     _attr_operation_list = [STATE_OFF, STATE_PERFORMANCE, STATE_ECO]
 
-    def __init__(self, coordinator, translation_key, current_slug, target_slug, min_slug, max_slug, mode_slug):
+    def __init__(self, coordinator, entry_id, translation_key, current_slug, target_slug, min_slug, max_slug, mode_slug):
         """Initializes the water heater entity.
 
         Args:
             coordinator: The data update coordinator.
+            entry_id: The config entry ID, used to scope unique_id/device_info.
             translation_key: The translation key (used as name).
             current_slug: Slug for current temperature sensor.
             target_slug: Slug for target temperature parameter.
@@ -109,14 +111,15 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             mode_slug: Slug for operation mode.
         """
         super().__init__(coordinator)
+        self._entry_id = entry_id
         self._attr_translation_key = translation_key
         self._current_slug = current_slug
         self._target_slug = target_slug
         self._min_slug = min_slug
         self._max_slug = max_slug
         self._mode_slug = mode_slug
-        
-        self._attr_unique_id = f"{DOMAIN}_{translation_key}"
+
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_{translation_key}"
         self._attr_has_entity_name = True
 
     @property
@@ -126,12 +129,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         Returns:
             DeviceInfo: The device info dictionary.
         """
-        return DeviceInfo(
-            identifiers={(DOMAIN, "plum_hdw")},
-            name="DHW",
-            manufacturer="Plum",
-            model="DHW Manager",
-        )
+        return hdw_device_info(self._entry_id)
 
     @property
     def current_temperature(self) -> Optional[float]:
@@ -227,7 +225,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         if temp is None:
             return
         
-        _LOGGER.info(f"Setting DHW target: {temp}")
+        _LOGGER.info("Setting DHW target: %s", temp)
         # Convert to int as Plum usually expects integers for setpoints
         await self.coordinator.async_set_value(self._target_slug, int(temp))
 
@@ -240,7 +238,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         target_val = HA_TO_PLUM_WATER_HEATER.get(operation_mode)
         
         if target_val is not None:
-            _LOGGER.info(f"Setting DHW mode: {operation_mode} -> {target_val}")
+            _LOGGER.info("Setting DHW mode: %s -> %s", operation_mode, target_val)
             await self.coordinator.async_set_value(self._mode_slug, target_val)
         else:
-            _LOGGER.error(f"Unknown or unsupported DHW mode: {operation_mode}")
+            _LOGGER.error("Unknown or unsupported DHW mode: %s", operation_mode)

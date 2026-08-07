@@ -35,6 +35,7 @@ SWITCH_TYPES = {
     "hdwstartoneloading": ("Force DHW reload", 1, 0),
     # 0x200 = bit 9 levé = marche forcée pompe ECS vers ballon solaire (ID 172)
     "hdwpumpforce": ("Force pompe ECS → ballon solaire", 512, 0),
+    "hdwstartlegion": ("Cycle anti-légionellose", 1, 0),
 }
 
 # --- CONFIGURATION SELECT (DROPDOWN) ---
@@ -105,6 +106,11 @@ CIRCUIT_CHOICES = ["1", "2", "3", "4", "5", "6", "7"]
 
 UPDATE_INTERVAL = 30
 
+# --- PARAMETERS USED IN DEVICE REGISTRY METADATA, NOT AS ENTITIES ---
+# Still need to be polled into coordinator.data so device_info properties
+# can read them (see device.py's boiler_device_info(serial_number=...)).
+DEVICE_INFO_PARAMS = ["uid"]
+
 # --- SENSOR CONFIGURATION ---
 # Format: "slug": [Unit, Icon, DeviceClass] (3 elements)
 SENSOR_TYPES = {
@@ -117,7 +123,11 @@ SENSOR_TYPES = {
     "tempclutch": [UnitOfTemperature.CELSIUS, "mdi:fire-alert", "temperature"],
     "buforsetpoint": [UnitOfTemperature.CELSIUS, "mdi:target", "temperature"],
 
-    "tempcircuit1": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    # No "tempcircuit1": circuit 1 has no dedicated flow-temp register in
+    # the device map (id sequence 61,62,63,64,65,[gap],66=tempcircuit2,67=
+    # tempcircuit3,...) -- circuit 1's room temperature is already covered
+    # via circuit1thermostattemp, and climate.py's own fallback chain
+    # doesn't need this slug either. See IMPROVEMENT_PLAN.md.
     "tempcircuit2": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "tempcircuit3": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "tempcircuit4": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
@@ -130,7 +140,9 @@ SENSOR_TYPES = {
     "circuit3thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "circuit4thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "circuit5thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "circuit6thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    # No "circuit6thermostattemp" in the device map either -- climate.py's
+    # fallback chain (circuitNthermostattemp -> tempcircuitN) already
+    # covers circuit 6 via tempcircuit6, this was only a dead sensor entry.
     "circuit7thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
 
     "mixer1valveposition": [PERCENTAGE, "mdi:valve", None],
@@ -141,6 +153,17 @@ SENSOR_TYPES = {
     "mixer6valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer7valveposition": [PERCENTAGE, "mdi:valve", None],
 
+    # RAW/STRING parameters (device.py's RAW decode, DP_INVENTORY.md).
+    # "uid" is deliberately NOT a sensor -- device.py's boiler_device_info()
+    # shows it as the device registry's serial_number instead. It's kept
+    # polled via DEVICE_INFO_PARAMS below.
+    "circuit1name": [None, "mdi:label-outline", None],
+    "circuit2name": [None, "mdi:label-outline", None],
+    "circuit3name": [None, "mdi:label-outline", None],
+    "circuit4name": [None, "mdi:label-outline", None],
+    "circuit5name": [None, "mdi:label-outline", None],
+    "circuit6name": [None, "mdi:label-outline", None],
+    "circuit7name": [None, "mdi:label-outline", None],
 }
 
 # --- THERMOSTATS ---
@@ -159,7 +182,21 @@ NUMBER_TYPES = {
     # Bypasses the normal temperature comparison logic (useful for solar pre-heating)
     "buforlongloadtime": (0, 180, 1, "mdi:timer"),
 
+    # Anti-legionella cycle (DP_INVENTORY.md)
+    "hdwlegionsetpoint": (60, 80, 1, "mdi:bacteria-outline"),
+    "hdwlegionday": (0, 7, 1, "mdi:calendar"),
+    "hdwlegionhour": (0, 23, 1, "mdi:clock-outline"),
 }
+
+# Per-circuit heating curve tuning (DP_INVENTORY.md "Circuits — courbes de
+# chauffe & limites"). Circuit 6's device map has no curvefloor/curveradiator
+# entries (only circuits 1-5 and 7 do), so it's skipped for those two.
+for _circuit_id in range(1, 8):
+    if _circuit_id != 6:
+        NUMBER_TYPES[f"circuit{_circuit_id}curvefloor"] = (0.1, 4.0, 0.1, "mdi:chart-bell-curve")
+        NUMBER_TYPES[f"circuit{_circuit_id}curveradiator"] = (0.1, 4.0, 0.1, "mdi:chart-bell-curve")
+    NUMBER_TYPES[f"circuit{_circuit_id}basetemp"] = (20, 90, 1, "mdi:thermometer")
+    NUMBER_TYPES[f"circuit{_circuit_id}tempreduction"] = (0, 15, 1, "mdi:thermometer-minus")
 
 
 WEEKDAY_TO_SLUGS = {

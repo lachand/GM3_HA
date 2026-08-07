@@ -4,18 +4,86 @@ This module handles the configuration flow for setting up the integration
 via the Home Assistant UI. It allows the user to define the IP address,
 port, password, and active heating circuits.
 """
+import asyncio
 import logging
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_USERNAME, CONF_PORT
 from .const import DOMAIN, CONF_ACTIVE_CIRCUITS, CIRCUIT_CHOICES, DEFAULT_PORT
+from .plum_device import PlumDevice
 
 _LOGGER = logging.getLogger(__name__)
+
+# A parameter every supported boiler exposes, used purely to prove that a
+# real ecoNET conversation (connect + framed request/response + CRC) works,
+# not just that something is listening on the TCP port.
+_PROBE_SLUG = "hdwstate"
+
+
+def _build_data_schema(defaults: dict) -> vol.Schema:
+    """Builds the connection form schema, pre-filled from `defaults`."""
+    return vol.Schema({
+        vol.Required(CONF_IP_ADDRESS, default=defaults.get(CONF_IP_ADDRESS, "192.168.1.38")): str,
+        vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): int,
+        vol.Optional(CONF_USERNAME, default=defaults.get(CONF_USERNAME, "admin")): str,
+        vol.Required(CONF_PASSWORD, default=defaults.get(CONF_PASSWORD, "0000")): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+        vol.Required(
+            CONF_ACTIVE_CIRCUITS, default=defaults.get(CONF_ACTIVE_CIRCUITS, ["2"])
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=CIRCUIT_CHOICES,
+                mode=SelectSelectorMode.DROPDOWN,
+                multiple=True,
+                translation_key="circuits_selector"
+            )
+        ),
+    })
+
+
+async def _validate_connection(hass, user_input: dict) -> str | None:
+    """Tries an actual protocol-level read against the boiler.
+
+    This proves the IP/port/credentials really reach an ecoNET module --
+    not just that a TCP port happens to be open -- by loading the bundled
+    parameter map and reading one well-known parameter.
+
+    Returns:
+        str | None: An error code to show on the form, or None on success.
+    """
+    json_path = hass.config.path(f"custom_components/{DOMAIN}/device_map_ecomax360i.json")
+    device = PlumDevice(
+        user_input[CONF_IP_ADDRESS],
+        port=user_input.get(CONF_PORT, DEFAULT_PORT),
+        password=user_input[CONF_PASSWORD],
+        user=user_input.get(CONF_USERNAME, "admin"),
+        map_file=json_path,
+    )
+
+    try:
+        await asyncio.to_thread(device.load_map)
+    except Exception as err:
+        _LOGGER.error("Could not load parameter map %s: %s", json_path, err)
+        return "cannot_load_map"
+
+    try:
+        value = await device.get_value(_PROBE_SLUG, retries=2)
+    except Exception as err:
+        _LOGGER.debug("Connection test failed for %s: %s", user_input[CONF_IP_ADDRESS], err)
+        return "cannot_connect"
+
+    return None if value is not None else "cannot_connect"
+
 
 class PlumConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Plum EcoMAX.
@@ -27,8 +95,9 @@ class PlumConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step.
 
-        This method displays the configuration form to the user and validation
-        of the input. If the input is valid, it creates the configuration entry.
+        This method displays the configuration form to the user and validates
+        the input by attempting a real read from the boiler before creating
+        the configuration entry.
 
         Args:
             user_input: A dictionary containing the configuration data entered
@@ -40,29 +109,64 @@ class PlumConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """
         errors = {}
         if user_input is not None:
-            await self.async_set_unique_id(user_input[CONF_IP_ADDRESS])
-            self._abort_if_unique_id_configured()
-            title = f"Boiler ({user_input[CONF_IP_ADDRESS]})"
-            return self.async_create_entry(title=title, data=user_input)
-
-        data_schema = vol.Schema({
-            vol.Required(CONF_IP_ADDRESS, default="192.168.1.38"): str,
-            vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-            vol.Optional(CONF_USERNAME, default="admin"): str,
-            vol.Required(CONF_PASSWORD, default="0000"): str,
-            
-            vol.Required(CONF_ACTIVE_CIRCUITS, default=["2"]): SelectSelector(
-                SelectSelectorConfig(
-                    options=CIRCUIT_CHOICES,
-                    mode=SelectSelectorMode.DROPDOWN,
-                    multiple=True,
-                    translation_key="circuits_selector"
-                )
-            ),
-        })
+            error = await _validate_connection(self.hass, user_input)
+            if error:
+                errors["base"] = error
+            else:
+                await self.async_set_unique_id(user_input[CONF_IP_ADDRESS])
+                self._abort_if_unique_id_configured()
+                title = f"Boiler ({user_input[CONF_IP_ADDRESS]})"
+                return self.async_create_entry(title=title, data=user_input)
 
         return self.async_show_form(
             step_id="user",
-            data_schema=data_schema,
+            data_schema=_build_data_schema(user_input or {}),
+            errors=errors,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> "PlumOptionsFlow":
+        """Returns the options flow used to reconfigure an existing entry."""
+        return PlumOptionsFlow()
+
+
+class PlumOptionsFlow(config_entries.OptionsFlow):
+    """Lets an existing entry's IP/port/credentials/circuits be edited
+    without deleting and re-adding the whole integration.
+
+    Deliberately has no __init__: on current Home Assistant, OptionsFlow.
+    config_entry is a read-only property computed from self.hass/self.handler
+    (not available until after the flow is initialized), not a plain
+    attribute -- assigning to it in __init__, as the older
+    `PlumOptionsFlow(config_entry)` pattern did, raises AttributeError
+    ("can't set attribute"), which surfaced as a 500 error opening the
+    options flow. self.config_entry works fine once referenced inside
+    async_step_init below.
+    """
+
+    async def async_step_init(self, user_input=None):
+        """Show and validate the reconfiguration form.
+
+        On success, updates the config entry's data in place and reloads
+        it so the new connection details take effect immediately.
+        """
+        errors = {}
+        if user_input is not None:
+            error = await _validate_connection(self.hass, user_input)
+            if error:
+                errors["base"] = error
+            else:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data=user_input,
+                    title=f"Boiler ({user_input[CONF_IP_ADDRESS]})",
+                )
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_build_data_schema(user_input or self.config_entry.data),
             errors=errors,
         )

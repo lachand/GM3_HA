@@ -5,17 +5,33 @@ of the boiler, such as hysteresis, target temperatures (if not covered by climat
 or other adjustable settings defined in `NUMBER_TYPES`.
 """
 import logging
+import re
 from homeassistant.components.number import NumberEntity
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from .const import DOMAIN, NUMBER_TYPES
+from .const import DOMAIN, NUMBER_TYPES, CONF_ACTIVE_CIRCUITS
+from .device import boiler_device_info, circuit_device_info, hdw_device_info, mixers_device_info
 
 _LOGGER = logging.getLogger(__name__)
+
+_CIRCUIT_SLUG_RE = re.compile(r"^circuit(\d+)")
+
+# Advanced/rarely-touched settings (heating curves, anti-legionella cycle,
+# forced buffer loading): moved out of the main "Controls" card into the
+# device's "Configuration" section, so they aren't sitting next to everyday
+# controls where they could be nudged by accident.
+_ADVANCED_NUMBER_PREFIXES = ("hdwlegion", "buforlongloadtime")
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Sets up Plum EcoMAX number entities.
 
     Iterates through the `NUMBER_TYPES` configuration and creates an entity
-    if the corresponding parameter exists on the device.
+    if the corresponding parameter exists on the device. Per-circuit
+    entities (heating curves etc.) are skipped for circuits not selected in
+    CONF_ACTIVE_CIRCUITS -- matching sensor.py/climate.py/calendar.py, which
+    already do this. Previously this platform ignored the setting entirely
+    and created every circuit 1-7's entities regardless of which ones are
+    actually wired up.
 
     Args:
         hass: The Home Assistant instance.
@@ -23,10 +39,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
         async_add_entities: Callback to add entities to Home Assistant.
     """
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    selected_circuits = entry.data.get(CONF_ACTIVE_CIRCUITS, [])
     entities = []
     for slug, config in NUMBER_TYPES.items():
-        if slug in coordinator.device.params_map:
-            entities.append(PlumEcomaxNumber(coordinator, entry, slug, config))
+        if slug not in coordinator.device.params_map:
+            continue
+        circuit_match = _CIRCUIT_SLUG_RE.match(slug)
+        if circuit_match and circuit_match.group(1) not in selected_circuits:
+            continue
+        entities.append(PlumEcomaxNumber(coordinator, entry, slug, config))
     if entities:
         async_add_entities(entities)
 
@@ -60,22 +81,26 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         self._entry_id = entry.entry_id
         self._attr_translation_key = slug
 
+        self._circuit_match = _CIRCUIT_SLUG_RE.match(slug)
+        if self._circuit_match or slug.startswith(_ADVANCED_NUMBER_PREFIXES):
+            self._attr_entity_category = EntityCategory.CONFIG
+
     @property
     def device_info(self) -> dict:
-        """Links the entity to the Mixers device or the main Boiler device."""
+        """Links the entity to its Circuit, DHW, Mixers, or the main Boiler device.
+
+        Previously every non-"mixer" slug fell through to the generic
+        boiler device -- including per-circuit heating curves and DHW
+        settings -- which is why they all showed up crammed onto "Plum
+        EcoMAX Boiler" instead of their own Circuit N / DHW device.
+        """
+        if self._circuit_match:
+            return circuit_device_info(self._entry_id, int(self._circuit_match.group(1)))
         if self._slug.startswith("mixer"):
-            return {
-                "identifiers": {(DOMAIN, f"{self._entry_id}_mixers")},
-                "name": "Mixers",
-                "manufacturer": "Plum",
-                "model": "Mixing valves",
-                "via_device": (DOMAIN, self._entry_id),
-            }
-        return {
-            "identifiers": {(DOMAIN, self._entry_id)},
-            "name": "Plum EcoMAX Boiler",
-            "manufacturer": "Plum",
-        }
+            return mixers_device_info(self._entry_id)
+        if self._slug.startswith("hdw"):
+            return hdw_device_info(self._entry_id)
+        return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
 
     @property
     def unique_id(self) -> str:

@@ -14,8 +14,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, SWITCH_TYPES
+from .device import boiler_device_info, hdw_device_info
 
-HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce"}
+HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce", "hdwstartlegion"}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,9 +42,9 @@ async def async_setup_entry(
         name, on_value, off_value = cfg
         # We only create the entity if the parameter exists on the device
         if slug in coordinator.device.params_map:
-            entities.append(PlumEconetSwitch(coordinator, slug, name, on_value, off_value))
+            entities.append(PlumEconetSwitch(coordinator, entry.entry_id, slug, name, on_value, off_value))
         else:
-            _LOGGER.debug(f"Switch '{slug}' not found in device map, skipping.")
+            _LOGGER.debug("Switch '%s' not found in device map, skipping.", slug)
 
     async_add_entities(entities)
 
@@ -56,25 +57,21 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
     """
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, slug: str, name: str, on_value: int = 1, off_value: int = 0):
+    def __init__(self, coordinator, entry_id: str, slug: str, name: str, on_value: int = 1, off_value: int = 0):
         super().__init__(coordinator)
+        self._entry_id = entry_id
         self._slug = slug
         self._log_name = name
         self._on_value = on_value
         self._off_value = off_value
         self._attr_translation_key = slug
-        self._attr_unique_id = f"{DOMAIN}_{slug}"
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_switch_{slug}"
 
     @property
     def device_info(self) -> DeviceInfo | None:
         if self._slug in HDW_SWITCHES:
-            return DeviceInfo(
-                identifiers={(DOMAIN, "plum_hdw")},
-                name="DHW",
-                manufacturer="Plum",
-                model="DHW Manager",
-            )
-        return None
+            return hdw_device_info(self._entry_id)
+        return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
 
     @property
     def is_on(self) -> bool:
@@ -85,9 +82,9 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
             return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        _LOGGER.info(f"Turning ON {self._log_name} ({self._slug}) → {self._on_value}")
+        _LOGGER.info("Turning ON %s (%s) -> %s", self._log_name, self._slug, self._on_value)
         await self.coordinator.async_set_value(self._slug, self._on_value)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        _LOGGER.info(f"Turning OFF {self._log_name} ({self._slug}) → {self._off_value}")
+        _LOGGER.info("Turning OFF %s (%s) -> %s", self._log_name, self._slug, self._off_value)
         await self.coordinator.async_set_value(self._slug, self._off_value)

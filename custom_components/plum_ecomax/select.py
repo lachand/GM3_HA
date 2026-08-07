@@ -9,10 +9,12 @@ from typing import Any, Dict
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, SELECT_TYPES
+from .device import hdw_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,9 +39,9 @@ async def async_setup_entry(
     # Config format: "slug": ("Name", Map_To_HA, Map_To_Plum)
     for slug, (name, map_to_ha, map_to_plum) in SELECT_TYPES.items():
         if slug in coordinator.device.params_map:
-            entities.append(PlumEconetSelect(coordinator, slug, name, map_to_ha, map_to_plum))
+            entities.append(PlumEconetSelect(coordinator, entry.entry_id, slug, name, map_to_ha, map_to_plum))
         else:
-            _LOGGER.debug(f"Select '{slug}' not found in device map, skipping.")
+            _LOGGER.debug("Select '%s' not found in device map, skipping.", slug)
 
     async_add_entities(entities)
 
@@ -52,27 +54,33 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
     """
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, slug: str, name: str, map_to_ha: Dict[int, str], map_to_plum: Dict[str, int]):
+    def __init__(self, coordinator, entry_id: str, slug: str, name: str, map_to_ha: Dict[int, str], map_to_plum: Dict[str, int]):
         """Initializes the select entity.
 
         Args:
             coordinator: The data update coordinator.
+            entry_id: The config entry ID, used to scope unique_id/device_info.
             slug: The parameter identifier string.
             name: The friendly name of the entity.
             map_to_ha: Dictionary mapping Integer (Plum) -> String (Home Assistant).
             map_to_plum: Dictionary mapping String (Home Assistant) -> Integer (Plum).
         """
         super().__init__(coordinator)
+        self._entry_id = entry_id
         self._slug = slug
         self._log_name = name
         self._attr_translation_key = slug
-        self._attr_unique_id = f"{DOMAIN}_{slug}"
-        
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_select_{slug}"
+
         self._map_to_ha = map_to_ha
         self._map_to_plum = map_to_plum
-        
+
         # Define available options based on the mapping keys
         self._attr_options = list(map_to_plum.keys())
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return hdw_device_info(self._entry_id)
 
     @property
     def current_option(self) -> str | None:
@@ -103,7 +111,7 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
         target_val = self._map_to_plum.get(option)
         
         if target_val is not None:
-            _LOGGER.info(f"Setting {self._log_name} to {option} (Raw: {target_val})")
+            _LOGGER.info("Setting %s to %s (raw: %s)", self._log_name, option, target_val)
             await self.coordinator.async_set_value(self._slug, target_val)
         else:
-            _LOGGER.error(f"Invalid option '{option}' for {self._slug}")
+            _LOGGER.error("Invalid option '%s' for %s", option, self._slug)

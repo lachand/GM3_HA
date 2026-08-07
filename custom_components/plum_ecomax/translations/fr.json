@@ -7,17 +7,38 @@
                 "data": {
                     "ip_address": "Adresse IP",
                     "port": "Port",
+                    "username": "Nom d'utilisateur",
                     "password": "Mot de passe",
                     "active_circuits": "Circuits de chauffage actifs"
                 }
             }
         },
         "error": {
-            "cannot_connect": "Connexion impossible",
+            "cannot_connect": "Connexion à la chaudière impossible",
+            "cannot_load_map": "Échec du chargement de la table des paramètres",
             "invalid_auth": "Authentification invalide"
         },
         "abort": {
             "already_configured": "L'appareil est déjà configuré"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Configuration Plum EcoMAX",
+                "description": "Modifiez les informations de connexion au module EcoNet.",
+                "data": {
+                    "ip_address": "Adresse IP",
+                    "port": "Port",
+                    "username": "Nom d'utilisateur",
+                    "password": "Mot de passe",
+                    "active_circuits": "Circuits de chauffage actifs"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Connexion à la chaudière impossible",
+            "cannot_load_map": "Échec du chargement de la table des paramètres"
         }
     },
     "selector": {
@@ -36,6 +57,9 @@
     "entity": {
         "climate": {
             "thermostat": { "name": "Thermostat" }
+        },
+        "calendar": {
+            "schedule": { "name": "Planning" }
         },
         "water_heater": {
             "hdw": { "name": "Eau Chaude Sanitaire" }
@@ -69,13 +93,49 @@
             "mixer4valveposition": { "name": "Ouverture Vanne" },
             "mixer5valveposition": { "name": "Ouverture Vanne" },
             "mixer6valveposition": { "name": "Ouverture Vanne" },
-            "mixer7valveposition": { "name": "Ouverture Vanne" }
+            "mixer7valveposition": { "name": "Ouverture Vanne" },
+            "circuit1name": { "name": "Nom Circuit 1" },
+            "circuit2name": { "name": "Nom Circuit 2" },
+            "circuit3name": { "name": "Nom Circuit 3" },
+            "circuit4name": { "name": "Nom Circuit 4" },
+            "circuit5name": { "name": "Nom Circuit 5" },
+            "circuit6name": { "name": "Nom Circuit 6" },
+            "circuit7name": { "name": "Nom Circuit 7" }
         },
         "number": {
             "hdwtsetpoint": { "name": "Consigne ECS" },
             "hdwminsettemp": { "name": "ECS Min" },
             "hdwmaxsettemp": { "name": "ECS Max" },
-            "buforlongloadtime": { "name": "Forcer chargement ballon tampon (minutes)" }
+            "buforlongloadtime": { "name": "Forcer chargement ballon tampon (minutes)" },
+            "hdwlegionsetpoint": { "name": "Température cible anti-légionellose" },
+            "hdwlegionday": { "name": "Jour cycle anti-légionellose" },
+            "hdwlegionhour": { "name": "Heure cycle anti-légionellose" },
+            "circuit1curvefloor": { "name": "Courbe de chauffe Circuit 1 (plancher)" },
+            "circuit1curveradiator": { "name": "Courbe de chauffe Circuit 1 (radiateur)" },
+            "circuit1basetemp": { "name": "Température de base Circuit 1" },
+            "circuit1tempreduction": { "name": "Réduction nocturne Circuit 1" },
+            "circuit2curvefloor": { "name": "Courbe de chauffe Circuit 2 (plancher)" },
+            "circuit2curveradiator": { "name": "Courbe de chauffe Circuit 2 (radiateur)" },
+            "circuit2basetemp": { "name": "Température de base Circuit 2" },
+            "circuit2tempreduction": { "name": "Réduction nocturne Circuit 2" },
+            "circuit3curvefloor": { "name": "Courbe de chauffe Circuit 3 (plancher)" },
+            "circuit3curveradiator": { "name": "Courbe de chauffe Circuit 3 (radiateur)" },
+            "circuit3basetemp": { "name": "Température de base Circuit 3" },
+            "circuit3tempreduction": { "name": "Réduction nocturne Circuit 3" },
+            "circuit4curvefloor": { "name": "Courbe de chauffe Circuit 4 (plancher)" },
+            "circuit4curveradiator": { "name": "Courbe de chauffe Circuit 4 (radiateur)" },
+            "circuit4basetemp": { "name": "Température de base Circuit 4" },
+            "circuit4tempreduction": { "name": "Réduction nocturne Circuit 4" },
+            "circuit5curvefloor": { "name": "Courbe de chauffe Circuit 5 (plancher)" },
+            "circuit5curveradiator": { "name": "Courbe de chauffe Circuit 5 (radiateur)" },
+            "circuit5basetemp": { "name": "Température de base Circuit 5" },
+            "circuit5tempreduction": { "name": "Réduction nocturne Circuit 5" },
+            "circuit6basetemp": { "name": "Température de base Circuit 6" },
+            "circuit6tempreduction": { "name": "Réduction nocturne Circuit 6" },
+            "circuit7curvefloor": { "name": "Courbe de chauffe Circuit 7 (plancher)" },
+            "circuit7curveradiator": { "name": "Courbe de chauffe Circuit 7 (radiateur)" },
+            "circuit7basetemp": { "name": "Température de base Circuit 7" },
+            "circuit7tempreduction": { "name": "Réduction nocturne Circuit 7" }
         },
         "switch": {
             "hdwstartoneloading": {
@@ -83,6 +143,9 @@
             },
             "hdwpumpforce": {
                 "name": "Pompe ECS → Ballon solaire"
+            },
+            "hdwstartlegion": {
+                "name": "Cycle anti-légionellose"
             }
         },
         "select": {

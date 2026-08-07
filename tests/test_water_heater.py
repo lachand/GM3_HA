@@ -11,7 +11,7 @@ def dhw_entity():
     coordinator.async_set_value = AsyncMock(return_value=True)
     
     entity = PlumEcomaxWaterHeater(
-        coordinator, "DHW", 
+        coordinator, "entry123", "DHW",
         "temp_curr", "temp_target", "temp_min", "temp_max", "mode_slug"
     )
     return entity
