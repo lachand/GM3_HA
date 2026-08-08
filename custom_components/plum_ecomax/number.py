@@ -15,12 +15,45 @@ from .device import boiler_device_info, circuit_device_info, hdw_device_info, mi
 _LOGGER = logging.getLogger(__name__)
 
 _CIRCUIT_SLUG_RE = re.compile(r"^circuit(\d+)")
+# Mixer N is physically tied to circuit N on this boiler, so mixer entities
+# (none exist in NUMBER_TYPES yet, but see DP_INVENTORY.md) are gated by
+# the same active-circuits setting as circuit entities -- see sensor.py's
+# async_setup_entry for the same fix, prompted by "mixers_ouverture_vanne_3"
+# showing up for a circuit that was never configured or wired up.
+_CIRCUIT_OR_MIXER_SLUG_RE = re.compile(r"^(?:circuit|mixer)(\d+)")
 
 # Advanced/rarely-touched settings (heating curves, anti-legionella cycle,
 # forced buffer loading): moved out of the main "Controls" card into the
 # device's "Configuration" section, so they aren't sitting next to everyday
 # controls where they could be nudged by accident.
 _ADVANCED_NUMBER_PREFIXES = ("hdwlegion", "buforlongloadtime")
+
+
+def is_config_category_slug(slug: str) -> bool:
+    """Whether a NUMBER_TYPES slug is marked EntityCategory.CONFIG.
+
+    Shared with button.py's save/restore-defaults buttons, which operate
+    on exactly this set of "advanced" parameters.
+    """
+    return bool(_CIRCUIT_SLUG_RE.match(slug)) or slug.startswith(_ADVANCED_NUMBER_PREFIXES)
+
+
+def active_number_slugs(params_map: dict, selected_circuits: list) -> list:
+    """NUMBER_TYPES slugs that would actually get an entity: present on
+    this boiler, and (for circuit/mixer-numbered ones) belonging to an
+    active circuit. Shared with button.py so the save/restore buttons only
+    ever touch parameters that are really in use.
+    """
+    slugs = []
+    for slug in NUMBER_TYPES:
+        if slug not in params_map:
+            continue
+        gating_match = _CIRCUIT_OR_MIXER_SLUG_RE.match(slug)
+        if gating_match and gating_match.group(1) not in selected_circuits:
+            continue
+        slugs.append(slug)
+    return slugs
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Sets up Plum EcoMAX number entities.
@@ -40,14 +73,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """
     coordinator = hass.data[DOMAIN][entry.entry_id]
     selected_circuits = entry.data.get(CONF_ACTIVE_CIRCUITS, [])
-    entities = []
-    for slug, config in NUMBER_TYPES.items():
-        if slug not in coordinator.device.params_map:
-            continue
-        circuit_match = _CIRCUIT_SLUG_RE.match(slug)
-        if circuit_match and circuit_match.group(1) not in selected_circuits:
-            continue
-        entities.append(PlumEcomaxNumber(coordinator, entry, slug, config))
+    entities = [
+        PlumEcomaxNumber(coordinator, entry, slug, NUMBER_TYPES[slug])
+        for slug in active_number_slugs(coordinator.device.params_map, selected_circuits)
+    ]
     if entities:
         async_add_entities(entities)
 
@@ -82,7 +111,7 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         self._attr_translation_key = slug
 
         self._circuit_match = _CIRCUIT_SLUG_RE.match(slug)
-        if self._circuit_match or slug.startswith(_ADVANCED_NUMBER_PREFIXES):
+        if is_config_category_slug(slug):
             self._attr_entity_category = EntityCategory.CONFIG
 
     @property

@@ -106,10 +106,47 @@ CIRCUIT_CHOICES = ["1", "2", "3", "4", "5", "6", "7"]
 
 UPDATE_INTERVAL = 30
 
+# Options/config flow key + bounds for making the polling interval tunable
+# per install (some networks/boilers tolerate faster or need slower polling
+# than the 30s default). Enforced in config_flow.py's schema.
+CONF_UPDATE_INTERVAL = "update_interval"
+MIN_UPDATE_INTERVAL = 10
+MAX_UPDATE_INTERVAL = 300
+
 # --- PARAMETERS USED IN DEVICE REGISTRY METADATA, NOT AS ENTITIES ---
 # Still need to be polled into coordinator.data so device_info properties
 # can read them (see device.py's boiler_device_info(serial_number=...)).
 DEVICE_INFO_PARAMS = ["uid"]
+
+# --- BINARY SENSOR CONFIGURATION ---
+# "Manual mode active": heatsourcemainpumpstate bit 6 (value 64). Empirically
+# confirmed reliable across 3 independent physical panel tests
+# (IMPROVEMENT_PLAN.md section H) -- the only state in which manual
+# overrides like the hdwpumpforce switch actually have a physical effect;
+# writing them while the panel isn't in manual mode is accepted and held by
+# the boiler but does nothing.
+MANUAL_MODE_SLUG = "heatsourcemainpumpstate"
+MANUAL_MODE_BIT = 64
+
+# Alarm bitmask registers (DP_INVENTORY.md "Alarmes & bits de diagnostic").
+# Only the registers whose name unambiguously means "alarm" are exposed as a
+# coarse "some bit is set" problem indicator -- individual bit meanings
+# aren't documented and haven't been empirically decoded the way
+# MANUAL_MODE_BIT was. detectalarmsettings/workstate2-4 are deliberately
+# NOT included here: their names read as configuration/extended-state
+# registers rather than live alarm flags, and detectalarmsettings is
+# observed nonzero (65280) with zero alarms visible on the physical panel --
+# treating it as "problem" would very likely be a permanent false positive.
+# Those four are exposed as plain diagnostic sensors instead (see
+# DIAGNOSTIC_SENSOR_SLUGS below).
+ALARM_BITMASK_SLUGS = [
+    "alarmbits_1",
+    "alarmbits_2",
+    "alarmbits_3",
+    "alarmbits_4",
+    "alarmbits_5",
+    "detectalarmstate",
+]
 
 # --- SENSOR CONFIGURATION ---
 # Format: "slug": [Unit, Icon, DeviceClass] (3 elements)
@@ -164,6 +201,26 @@ SENSOR_TYPES = {
     "circuit5name": [None, "mdi:label-outline", None],
     "circuit6name": [None, "mdi:label-outline", None],
     "circuit7name": [None, "mdi:label-outline", None],
+
+    # Raw diagnostic registers (DP_INVENTORY.md "Alarmes & bits de
+    # diagnostic"). Exposed as plain integers rather than decoded/booleans:
+    # see ALARM_BITMASK_SLUGS above for why these four specifically aren't
+    # treated as "problem" binary sensors. Gated into EntityCategory.
+    # DIAGNOSTIC via DIAGNOSTIC_SENSOR_SLUGS below.
+    "detectalarmsettings": [None, "mdi:bell-cog-outline", None],
+    "workstate2": [None, "mdi:chip", None],
+    "workstate3": [None, "mdi:chip", None],
+    "workstate4": [None, "mdi:chip", None],
+}
+
+# SENSOR_TYPES slugs shown in the device's "Diagnostic" section instead of
+# the main entity card -- raw registers meaningful mostly for troubleshooting
+# (see comment on the sensors above).
+DIAGNOSTIC_SENSOR_SLUGS = {
+    "detectalarmsettings",
+    "workstate2",
+    "workstate3",
+    "workstate4",
 }
 
 # --- THERMOSTATS ---

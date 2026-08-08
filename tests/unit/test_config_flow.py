@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import voluptuous as vol
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 
 from custom_components.plum_ecomax import config_flow as config_flow_module
@@ -20,7 +21,13 @@ from custom_components.plum_ecomax.config_flow import (
     _build_data_schema,
     _validate_connection,
 )
-from custom_components.plum_ecomax.const import CONF_ACTIVE_CIRCUITS
+from custom_components.plum_ecomax.const import (
+    CONF_ACTIVE_CIRCUITS,
+    CONF_UPDATE_INTERVAL,
+    MAX_UPDATE_INTERVAL,
+    MIN_UPDATE_INTERVAL,
+    UPDATE_INTERVAL,
+)
 
 
 def _fake_hass():
@@ -118,6 +125,44 @@ class TestBuildDataSchema:
         # which is how the options flow pre-fills the form from entry.data.
         result = schema({CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"]})
         assert result[CONF_IP_ADDRESS] == "10.0.0.5"
+
+    def test_update_interval_defaults_when_omitted(self):
+        schema = _build_data_schema({})
+        result = schema({
+            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
+        })
+        assert result[CONF_UPDATE_INTERVAL] == UPDATE_INTERVAL
+
+    def test_update_interval_default_reflects_prior_input(self):
+        schema = _build_data_schema({CONF_UPDATE_INTERVAL: 60})
+        result = schema({
+            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
+        })
+        assert result[CONF_UPDATE_INTERVAL] == 60
+
+    def test_update_interval_accepts_value_within_bounds(self):
+        schema = _build_data_schema({})
+        result = schema({
+            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
+            CONF_UPDATE_INTERVAL: 90,
+        })
+        assert result[CONF_UPDATE_INTERVAL] == 90
+
+    def test_update_interval_rejects_value_below_minimum(self):
+        schema = _build_data_schema({})
+        with pytest.raises(vol.Invalid):
+            schema({
+                CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
+                CONF_UPDATE_INTERVAL: MIN_UPDATE_INTERVAL - 1,
+            })
+
+    def test_update_interval_rejects_value_above_maximum(self):
+        schema = _build_data_schema({})
+        with pytest.raises(vol.Invalid):
+            schema({
+                CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
+                CONF_UPDATE_INTERVAL: MAX_UPDATE_INTERVAL + 1,
+            })
 
 
 class TestOptionsFlowConstruction:

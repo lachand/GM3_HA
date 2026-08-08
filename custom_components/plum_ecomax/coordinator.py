@@ -11,6 +11,7 @@ from datetime import timedelta
 from typing import Any, Dict, Tuple, Optional
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 # Conditional import for typing only
@@ -29,11 +30,24 @@ from .const import (
     SWITCH_TYPES,
     SELECT_TYPES,
     DEVICE_INFO_PARAMS,
+    ALARM_BITMASK_SLUGS,
+    MANUAL_MODE_SLUG,
 )
+from .issues import clear_issue, raise_issue
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TTL = 300
+
+# _async_update_data only actually attempts a transaction for slugs whose
+# per-slug cache entry has gone stale (see the fetch-splitting logic
+# below) -- with DEFAULT_TTL=300s vs. the 30s default poll interval, a
+# quiet cycle can go by without any transaction being attempted at all, so
+# "3 consecutive failures" can take a few minutes of wall-clock time to
+# reach in the worst case, not 3 poll cycles. Acceptable for a heating
+# comfort integration (not a safety-critical one) but worth being honest
+# about instead of implying near-instant detection.
+CONNECTION_LOST_THRESHOLD = 3
 
 # Definitions of physical limits for validation
 VALIDATION_RANGES = {
@@ -52,16 +66,29 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
     to prevent outliers from polluting the state machine.
     """
 
-    def __init__(self, hass: HomeAssistant, device: "PlumDevice"):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        device: "PlumDevice",
+        entry_id: str,
+        update_interval: int = UPDATE_INTERVAL,
+    ):
         """Initializes the coordinator.
 
         Args:
             hass: Home Assistant core instance.
             device: The low-level PlumDevice instance.
+            entry_id: The config entry ID -- scopes repair issue ids so two
+                boilers (two config entries) never collide on the same
+                issue (same reasoning as device.py's device_info helpers).
+            update_interval: Polling interval in seconds. Defaults to
+                UPDATE_INTERVAL, overridable per config entry (see
+                CONF_UPDATE_INTERVAL in const.py).
         """
         self.device = device
+        self.entry_id = entry_id
         self.available_slugs: list[str] = []
-        
+
         # Cache System
         self._cache: Dict[str, Any] = {}
         self._timestamps: Dict[str, float] = {}
@@ -72,7 +99,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=UPDATE_INTERVAL),
+            update_interval=timedelta(seconds=update_interval),
         )
 
     async def _async_update_data(self) -> Dict[str, Any]:
@@ -129,7 +156,27 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                 if cached_val is not None:
                     data[slug] = cached_val
 
+        self._update_connection_issue()
         return data
+
+    def _update_connection_issue(self) -> None:
+        """Raises/clears the "connection lost" repair issue based on
+        PlumDevice.consecutive_failures. Runs unconditionally every cycle
+        (not gated on whether this cycle actually attempted a transaction)
+        so a past outage's issue stays open until the count actually
+        recovers, and a healthy device never has a stale issue lingering.
+        """
+        issue_id = f"connection_lost_{self.entry_id}"
+        if self.device.consecutive_failures >= CONNECTION_LOST_THRESHOLD:
+            raise_issue(
+                self.hass,
+                issue_id,
+                "connection_lost",
+                severity=ir.IssueSeverity.ERROR,
+                translation_placeholders={"count": str(self.device.consecutive_failures)},
+            )
+        else:
+            clear_issue(self.hass, issue_id)
 
     def _validate_value(self, slug: str, raw_val: Any, cached_val: Any) -> Tuple[bool, Any]:
         """Sanitizes the raw value based on JSON limits or Generic constraints.
@@ -236,11 +283,21 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                 restore if the device never confirms.
         """
         confirmed = False
+        # Snapshotted right after our own device.set_value() call, before
+        # anything else can touch device.last_write_error: that attribute
+        # is device-wide (not per-slug), and the _io_lock that protects it
+        # is released during the 2s gap between our own attempts below, so
+        # a different slug's write (or a poll read) could run in that gap
+        # and overwrite it. Reading it immediately after our own call --
+        # not once at the end of the loop -- keeps this specific to our
+        # own write.
+        last_rejection_code: Optional[int] = None
         for i in range(1, 6):  # up to 5 attempts
             _LOGGER.debug("Sending %s=%s (attempt %d/5)", slug, value, i)
             if await self.device.set_value(slug, value):
                 confirmed = True
                 break
+            last_rejection_code = self.device.last_write_error
 
             # Wait 2 seconds between sends, but not after the last one
             if i < 5:
@@ -263,6 +320,23 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                     self._cache.pop(slug, None)
                 self._timestamps[slug] = 0
 
+        issue_id = f"write_rejected_{self.entry_id}_{slug}"
+        if confirmed:
+            clear_issue(self.hass, issue_id)
+        elif last_rejection_code is not None:
+            # The device explicitly rejected the write (e.g. 0x7D auth
+            # error) at least once -- distinct from simply never
+            # answering, which is already covered by the warning log
+            # above and doesn't get its own repair issue (nothing
+            # specific to tell the user beyond "check the connection",
+            # which connection_lost already covers if it's persistent).
+            raise_issue(
+                self.hass,
+                issue_id,
+                "write_rejected",
+                translation_placeholders={"slug": slug, "code": f"0x{last_rejection_code:02X}"},
+            )
+
         self.async_set_updated_data(self._cache)
 
     async def _detect_available_parameters(self) -> None:
@@ -283,6 +357,12 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         # very next poll cycle regardless of the real hardware state.
         targets.extend(list(SWITCH_TYPES.keys()))
         targets.extend(list(SELECT_TYPES.keys()))
+        # binary_sensor.py's slugs: same reasoning as the SWITCH_TYPES/
+        # SELECT_TYPES fix above -- anything read by an entity has to be in
+        # this list or it's never in available_slugs, so _async_update_data
+        # never re-polls it after the initial scan.
+        targets.append(MANUAL_MODE_SLUG)
+        targets.extend(ALARM_BITMASK_SLUGS)
         # Not an entity, but device_info properties read this from
         # coordinator.data (see const.py's DEVICE_INFO_PARAMS docstring).
         targets.extend(DEVICE_INFO_PARAMS)

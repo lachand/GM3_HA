@@ -10,12 +10,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT
 from homeassistant.exceptions import ConfigEntryNotReady
-from .const import DOMAIN, DEFAULT_PORT
+from homeassistant.helpers import config_validation as cv
+from .const import DOMAIN, DEFAULT_PORT, CONF_UPDATE_INTERVAL, UPDATE_INTERVAL
 from .coordinator import PlumDataUpdateCoordinator
 from .plum_device import PlumDevice
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate", "sensor", "number", "switch", "select", "water_heater", "calendar"]
+PLATFORMS = ["climate", "sensor", "number", "switch", "select", "water_heater", "calendar", "button", "binary_sensor"]
+
+# This integration is only ever set up from a config entry (Settings ->
+# Devices & Services -> Add Integration), never from configuration.yaml --
+# tells hassfest/HA there's deliberately no YAML schema to validate.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Plum EcoMAX component.
@@ -59,7 +65,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             f"Could not load parameter map {json_path}: {err}"
         ) from err
 
-    coordinator = PlumDataUpdateCoordinator(hass, device)
+    update_interval = entry.data.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
+    coordinator = PlumDataUpdateCoordinator(hass, device, entry.entry_id, update_interval=update_interval)
     
     await coordinator.async_config_entry_first_refresh()
 
@@ -80,5 +87,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         bool: True if the entry was successfully unloaded.
     """
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        # PlumDevice now keeps its TCP connection open across transactions
+        # (persistent connection) instead of closing it after every one --
+        # tear it down explicitly here so a reload/removal doesn't leak an
+        # open socket until garbage collection gets around to it.
+        await asyncio.to_thread(coordinator.device.close)
     return unload_ok

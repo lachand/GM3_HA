@@ -18,7 +18,16 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_USERNAME, CONF_PORT
-from .const import DOMAIN, CONF_ACTIVE_CIRCUITS, CIRCUIT_CHOICES, DEFAULT_PORT
+from .const import (
+    DOMAIN,
+    CONF_ACTIVE_CIRCUITS,
+    CIRCUIT_CHOICES,
+    DEFAULT_PORT,
+    CONF_UPDATE_INTERVAL,
+    UPDATE_INTERVAL,
+    MIN_UPDATE_INTERVAL,
+    MAX_UPDATE_INTERVAL,
+)
 from .plum_device import PlumDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,6 +57,9 @@ def _build_data_schema(defaults: dict) -> vol.Schema:
                 translation_key="circuits_selector"
             )
         ),
+        vol.Optional(
+            CONF_UPDATE_INTERVAL, default=defaults.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
+        ): vol.All(vol.Coerce(int), vol.Range(min=MIN_UPDATE_INTERVAL, max=MAX_UPDATE_INTERVAL)),
     })
 
 
@@ -81,6 +93,13 @@ async def _validate_connection(hass, user_input: dict) -> str | None:
     except Exception as err:
         _LOGGER.debug("Connection test failed for %s: %s", user_input[CONF_IP_ADDRESS], err)
         return "cannot_connect"
+    finally:
+        # This PlumDevice is a one-shot probe, never stored anywhere. Its
+        # connection is now persistent (kept open on success) rather than
+        # closed after every transaction, so it has to be closed
+        # explicitly here or it leaks an open socket until garbage
+        # collection gets around to the object.
+        await asyncio.to_thread(device.close)
 
     return None if value is not None else "cannot_connect"
 

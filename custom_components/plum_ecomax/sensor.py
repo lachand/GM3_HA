@@ -11,11 +11,12 @@ import logging
 import re
 import math  # <--- CRITICAL: Import required for NaN checks
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from .const import DOMAIN, SENSOR_TYPES, CONF_ACTIVE_CIRCUITS
+from .const import DOMAIN, SENSOR_TYPES, CONF_ACTIVE_CIRCUITS, DIAGNOSTIC_SENSOR_SLUGS
 from .device import boiler_device_info, circuit_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +32,12 @@ async def async_setup_entry(
     If a sensor name contains 'circuit' or 'mixer' followed by a number,
     it is automatically assigned to that specific heating circuit device,
     provided that circuit is enabled in the configuration.
+
+    Mixer N is physically tied to circuit N on this boiler (it's the valve
+    actuator for that circuit's mix), so mixer entities are gated by the
+    same active-circuits setting as circuit entities -- previously mixers
+    were "always shown" regardless, which created entities like
+    "Ouverture Vanne 3" for a circuit the user never configured or wired up.
 
     Args:
         hass: The Home Assistant instance.
@@ -51,21 +58,13 @@ async def async_setup_entry(
         match = re.search(r'(circuit|mixer)(\d+)', slug)
 
         if match:
-            prefix = match.group(1)
             found_id = match.group(2)
-            if prefix == 'circuit':
-                # Circuit sensors: only shown if that circuit is enabled in config
-                if found_id in selected_circuits:
-                    target_circuit_id = found_id
-                else:
-                    continue
+            # Circuit and mixer sensors alike: only shown if that circuit
+            # number is enabled in config.
+            if found_id in selected_circuits:
+                target_circuit_id = found_id
             else:
-                # Mixer sensors: always shown, attached to the corresponding
-                # circuit device if that circuit is active, otherwise to the boiler
-                if found_id in selected_circuits:
-                    target_circuit_id = found_id
-                else:
-                    target_circuit_id = None
+                continue
 
         entities.append(PlumEcomaxSensor(coordinator, entry, slug, config, target_circuit_id))
 
@@ -180,6 +179,15 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
         # Only set state_class for numeric sensors
         if self._device_class or self._unit:
             return SensorStateClass.MEASUREMENT
+        return None
+
+    @property
+    def entity_category(self) -> EntityCategory | None:
+        """Raw diagnostic registers (see DIAGNOSTIC_SENSOR_SLUGS) are shown
+        under the device's "Diagnostic" section instead of the main card.
+        """
+        if self._slug in DIAGNOSTIC_SENSOR_SLUGS:
+            return EntityCategory.DIAGNOSTIC
         return None
 
     @property

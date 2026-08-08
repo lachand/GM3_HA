@@ -9,7 +9,8 @@
                     "port": "Port",
                     "username": "Nom d'utilisateur",
                     "password": "Mot de passe",
-                    "active_circuits": "Circuits de chauffage actifs"
+                    "active_circuits": "Circuits de chauffage actifs",
+                    "update_interval": "Intervalle de sondage (secondes)"
                 }
             }
         },
@@ -32,7 +33,8 @@
                     "port": "Port",
                     "username": "Nom d'utilisateur",
                     "password": "Mot de passe",
-                    "active_circuits": "Circuits de chauffage actifs"
+                    "active_circuits": "Circuits de chauffage actifs",
+                    "update_interval": "Intervalle de sondage (secondes)"
                 }
             }
         },
@@ -100,7 +102,20 @@
             "circuit4name": { "name": "Nom Circuit 4" },
             "circuit5name": { "name": "Nom Circuit 5" },
             "circuit6name": { "name": "Nom Circuit 6" },
-            "circuit7name": { "name": "Nom Circuit 7" }
+            "circuit7name": { "name": "Nom Circuit 7" },
+            "detectalarmsettings": { "name": "Réglages détection alarme (brut)" },
+            "workstate2": { "name": "État de fonctionnement 2 (brut)" },
+            "workstate3": { "name": "État de fonctionnement 3 (brut)" },
+            "workstate4": { "name": "État de fonctionnement 4 (brut)" }
+        },
+        "binary_sensor": {
+            "manual_mode_active": { "name": "Mode manuel actif" },
+            "alarmbits_1": { "name": "Bits Alarme 1" },
+            "alarmbits_2": { "name": "Bits Alarme 2" },
+            "alarmbits_3": { "name": "Bits Alarme 3" },
+            "alarmbits_4": { "name": "Bits Alarme 4" },
+            "alarmbits_5": { "name": "Bits Alarme 5" },
+            "detectalarmstate": { "name": "État alarme détectée" }
         },
         "number": {
             "hdwtsetpoint": { "name": "Consigne ECS" },
@@ -157,6 +172,28 @@
                     "auto": "Automatique"
                 }
             }
+        },
+        "button": {
+            "save_number_defaults": {
+                "name": "Enregistrer les valeurs actuelles comme référence"
+            },
+            "restore_number_defaults": {
+                "name": "Restaurer les valeurs de référence"
+            }
+        }
+    },
+    "issues": {
+        "alarm_active": {
+            "title": "Alarme chaudière active",
+            "description": "La chaudière signale un bit d'alarme actif sur « {slug} ». Consultez le panneau physique pour le code d'alarme exact et la procédure de résolution -- cette intégration détecte seulement qu'un bit est levé, elle ne décode pas les codes d'alarme individuels."
+        },
+        "write_rejected": {
+            "title": "Écriture rejetée par la chaudière",
+            "description": "L'écriture de « {slug} » a été rejetée par la chaudière avec le code {code} (par exemple 0x7D = erreur d'authentification) après 5 tentatives. Vérifiez le mot de passe configuré pour cette intégration, et que le paramètre est bien modifiable dans son état actuel."
+        },
+        "connection_lost": {
+            "title": "Connexion à la chaudière perdue",
+            "description": "{count} tentatives consécutives de communication avec la chaudière ont échoué. Vérifiez que la chaudière est sous tension et joignable sur le réseau à l'adresse IP/port configurés -- les entités afficheront des données obsolètes ou indisponibles jusqu'au rétablissement de la connexion."
         }
     }
 }

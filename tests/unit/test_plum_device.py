@@ -254,6 +254,22 @@ def _patch_socket(monkeypatch, response: bytes | None, chunk_size: int = 4096):
     monkeypatch.setattr(plum_device_module.socket, "socket", _factory)
 
 
+def _patch_counting_socket(monkeypatch, response: bytes | None):
+    """Like _patch_socket, but every socket.socket() call is counted and
+    gets its own fresh _FakeSocket instance -- used by the persistent-
+    connection tests below to prove whether a connection was reused
+    (factory called once) or reopened (factory called again).
+    """
+    calls = {"count": 0}
+
+    def _factory(*_args, **_kwargs):
+        calls["count"] += 1
+        return _FakeSocket(response)
+
+    monkeypatch.setattr(plum_device_module.socket, "socket", _factory)
+    return calls
+
+
 class TestSyncGetValue:
     def test_successful_read(self, monkeypatch):
         device = _make_device()
@@ -384,6 +400,151 @@ class TestGetValuesRawRouting:
 
 
 # ---------------------------------------------------------------------------
+# Persistent connection: reused across transactions, reconnected on any
+# anomaly instead of the previous connect-send-recv-close-per-transaction
+# pattern.
+# ---------------------------------------------------------------------------
+
+class _RaisingOnSendSocket:
+    """Stands in for a persistent connection that has silently died (e.g.
+    the boiler closed our idle connection): the OS-level send() itself
+    raises, as it would for a genuinely broken pipe/reset connection.
+    """
+
+    def settimeout(self, _timeout):
+        pass
+
+    def connect(self, _addr):
+        pass
+
+    def send(self, _data):
+        raise OSError("simulated dead connection")
+
+    def recv(self, _bufsize):
+        return b""
+
+    def close(self):
+        pass
+
+
+class _MultiTransactionSocket:
+    """Delivers one complete response per send()->recv() round, replayed
+    fresh for each request. Unlike _FakeSocket's single pre-scripted
+    buffer, this doesn't pretend a second response is already sitting in
+    the stream before the second request was even sent -- a real boiler
+    can't answer request #2 before receiving it, so pre-concatenating two
+    responses (as an earlier version of this test did) doesn't model a
+    real persistent connection's timing.
+    """
+
+    def __init__(self, response: bytes):
+        self._response = response
+        self._pos = 0
+
+    def settimeout(self, _timeout):
+        pass
+
+    def connect(self, _addr):
+        pass
+
+    def send(self, _data):
+        self._pos = 0  # a fresh, complete response becomes available
+
+    def recv(self, bufsize):
+        chunk = self._response[self._pos:self._pos + bufsize]
+        self._pos += len(chunk)
+        return chunk
+
+    def close(self):
+        pass
+
+
+class TestPersistentConnection:
+    def test_connection_is_reused_across_successful_transactions(self, monkeypatch):
+        device = _make_device()
+        calls = {"count": 0}
+
+        def _factory(*_a, **_k):
+            calls["count"] += 1
+            return _MultiTransactionSocket(SPEC_READ_RESPONSE)
+
+        monkeypatch.setattr(plum_device_module.socket, "socket", _factory)
+
+        first = device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+        second = device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+
+        assert first == second == struct.unpack("<I", bytes.fromhex("00E02B46"))[0]
+        assert calls["count"] == 1  # one connect for both transactions
+
+    def test_hard_socket_error_reconnects_and_retries_within_one_call(self, monkeypatch):
+        device = _make_device()
+        instances = iter([_RaisingOnSendSocket(), _FakeSocket(SPEC_READ_RESPONSE)])
+        monkeypatch.setattr(plum_device_module.socket, "socket", lambda *a, **k: next(instances))
+
+        val = device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+
+        # First (dead) socket's send() raised -- transparently recovered
+        # by reconnecting and resending within the same _sync_get_value()
+        # call, the caller never sees a failure.
+        assert val == struct.unpack("<I", bytes.fromhex("00E02B46"))[0]
+
+    def test_pid_mismatch_closes_connection_so_next_call_reconnects(self, monkeypatch):
+        device = _make_device()
+        calls = _patch_counting_socket(monkeypatch, SPEC_READ_RESPONSE)
+
+        # Response answers pid 16, not 999 -- a mismatch, which should
+        # drop the connection (see plum_device.py's _sync_get_value).
+        device._sync_get_value(999, {"type": "DWORD", "exponent": 0})
+        device._sync_get_value(999, {"type": "DWORD", "exponent": 0})
+
+        assert calls["count"] == 2  # second call had to reconnect
+
+    def test_close_tears_down_connection_and_next_call_reconnects(self, monkeypatch):
+        device = _make_device()
+        calls = _patch_counting_socket(monkeypatch, SPEC_READ_RESPONSE)
+
+        device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+        assert device._sock is not None
+        device.close()
+        assert device._sock is None
+
+        device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+        assert calls["count"] == 2
+
+    def test_consecutive_failures_increments_on_failure_and_resets_on_success(self, monkeypatch):
+        device = _make_device()
+        _patch_socket(monkeypatch, None)  # every transaction fails
+
+        device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+        assert device.consecutive_failures > 0
+
+        _patch_socket(monkeypatch, SPEC_READ_RESPONSE)
+        device._sync_get_value(16, {"type": "DWORD", "exponent": 0})
+        assert device.consecutive_failures == 0
+
+
+class TestLastWriteError:
+    def test_rejection_sets_last_write_error_to_the_raw_code(self, monkeypatch):
+        device = _make_device()
+        frame = bytearray(SPEC_WRITE_OK_RESPONSE)
+        frame[8] = 0x7D
+        body = bytes(frame[1:1 + 2 + struct.unpack("<H", bytes(frame[1:3]))[0]])
+        frame[-3:-1] = struct.pack(">H", device._crc16(body))
+        _patch_socket(monkeypatch, bytes(frame))
+
+        assert device._sync_set_value(172, b"payload") is False
+        assert device.last_write_error == 0x7D
+
+    def test_success_clears_last_write_error(self, monkeypatch):
+        device = _make_device()
+        device.last_write_error = 0x7D  # left over from an earlier rejection
+        _patch_socket(monkeypatch, SPEC_WRITE_OK_RESPONSE)
+
+        assert device._sync_set_value(172, b"payload") is True
+        assert device.last_write_error is None
+
+
+# ---------------------------------------------------------------------------
 # I/O serialization: a background write and a polling read must never open
 # concurrent socket transactions (IMPROVEMENT_PLAN.md section A).
 # ---------------------------------------------------------------------------
@@ -394,6 +555,14 @@ class _ConcurrencyTrackingSocket:
     simultaneously-open transactions across real OS threads
     (asyncio.to_thread runs the sync workers in a thread pool, so the
     counters need a real threading.Lock, not an asyncio.Lock).
+
+    The "occupied" window is bracketed by send() -> recv() (a transaction
+    actually in flight on the wire), not by connect()/close(): the
+    persistent-connection PlumDevice keeps a successful socket open across
+    transactions instead of closing it every time, so close() is no longer
+    a reliable "this transaction is done" signal -- reusing the same
+    instance for a second transaction without ever closing it would
+    otherwise look like unbounded concurrency.
     """
 
     _lock = threading.Lock()
@@ -421,6 +590,13 @@ class _ConcurrencyTrackingSocket:
         time.sleep(0.05)  # hold the "connection" open long enough to overlap if unlocked
 
     def recv(self, _bufsize):
+        # Decrement unconditionally: send() always increments once, and a
+        # reused-but-already-answered instance (persistent connection
+        # picked up stale, gets the "closed" b"" signal, see plum_device's
+        # _read_response) still needs its matching decrement, not just the
+        # "first real response" path.
+        with _ConcurrencyTrackingSocket._lock:
+            _ConcurrencyTrackingSocket.active -= 1
         if self._responded:
             return b""
         self._responded = True
@@ -428,8 +604,7 @@ class _ConcurrencyTrackingSocket:
         return SPEC_READ_RESPONSE if func == CMD_READ_VAL else SPEC_WRITE_OK_RESPONSE
 
     def close(self):
-        with _ConcurrencyTrackingSocket._lock:
-            _ConcurrencyTrackingSocket.active -= 1
+        pass
 
 
 class TestIoSerialization:

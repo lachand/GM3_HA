@@ -69,6 +69,23 @@ class PlumDevice:
         # polling read never open concurrent TCP connections to the boiler.
         self._io_lock = asyncio.Lock()
 
+        # Persistent connection: reused across transactions instead of a
+        # fresh connect/close per request (see _socket_transaction). None
+        # means "not currently connected".
+        self._sock: Optional[socket.socket] = None
+        # Consecutive fully-failed transactions (both reconnect attempts
+        # exhausted, or no valid frame within timeout) -- coordinator.py
+        # surfaces a "connection lost" repair issue once this crosses a
+        # threshold, and resets it to 0 on any successful transaction.
+        self.consecutive_failures = 0
+        # Raw result code (e.g. 0x7D auth error, 0x7F generic error) from
+        # the most recent write the boiler explicitly rejected -- distinct
+        # from "never got a response at all". Cleared on the next
+        # successful write. coordinator.py uses this to decide whether a
+        # write that was never confirmed deserves a specific "rejected"
+        # repair issue instead of just the generic warning log.
+        self.last_write_error: Optional[int] = None
+
     def load_map(self):
         """Loads the parameter definition map from the JSON file.
 
@@ -301,12 +318,19 @@ class PlumDevice:
         func, resp = result
         if func != CMD_READ_RESP or len(resp) < 7:
             logger.debug(f"Unexpected read response for pid={pid}: func=0x{func:02X} len={len(resp)}")
+            # Wrong func or a too-short payload isn't a valid answer to
+            # this specific request -- on a persistent connection that
+            # means the stream is desynced (e.g. a stale/duplicate frame
+            # from an earlier request), not just "this pid had no data".
+            # Drop the connection so the next transaction starts clean.
+            self._close_connection()
             return None
 
         # Data layout (spec 1.5.3.12): session(2) nblocks(1) nparams(1) pid(2) status(1) value(n)
         resp_pid = struct.unpack("<H", resp[4:6])[0]
         if resp_pid != pid:
             logger.debug(f"PID mismatch for read: requested {pid}, device answered {resp_pid}")
+            self._close_connection()
             return None
 
         return self._decode(resp[7:], param)
@@ -322,6 +346,10 @@ class PlumDevice:
         func, resp = result
         if func != CMD_WRITE_RESP:
             logger.warning("Unexpected write response for pid=%s: func=0x%02X", pid, func)
+            # Not a valid answer to this write -- same reasoning as the
+            # read-side mismatch handling above: drop the connection
+            # rather than risk it being desynced for the next transaction.
+            self._close_connection()
             return False
 
         # Data layout per spec 1.5.3.10: a single result code (0xE5=OK /
@@ -333,8 +361,15 @@ class PlumDevice:
         # that does send explicit error codes is still caught.
         if len(resp) >= 1 and resp[0] != WRITE_RESULT_OK:
             logger.warning("Write rejected by device for pid=%s: result code 0x%02X", pid, resp[0])
+            # An explicit rejection is a legitimate, well-formed answer
+            # (func matches) -- the connection itself is healthy, no
+            # reason to reconnect. Just remember the code so the
+            # coordinator can raise a specific "write rejected" repair
+            # issue instead of only the generic "never confirmed" one.
+            self.last_write_error = resp[0]
             return False
 
+        self.last_write_error = None
         return True
 
     def _sync_get_values_batch(self, items: list) -> Dict[int, Any]:
@@ -368,11 +403,16 @@ class PlumDevice:
         func, resp = result
         if func != CMD_READ_RESP or len(resp) < 3:
             logger.debug(f"Unexpected batch read response: func=0x{func:02X}")
+            self._close_connection()
             return {}
 
         resp_session = struct.unpack("<H", resp[0:2])[0]
         if resp_session != self.session_id:
             logger.debug(f"Batch session mismatch: sent {self.session_id}, got {resp_session}")
+            # Unlike the block-shape check below, a session mismatch means
+            # this frame isn't even an answer to our own request -- treat
+            # it as a desynced stream, same as the func mismatch above.
+            self._close_connection()
             return {}
 
         n_blocks = resp[2]
@@ -423,8 +463,60 @@ class PlumDevice:
                 crc &= 0xFFFF
         return crc
 
+    def _ensure_connection(self) -> socket.socket:
+        """Returns the persistent socket, opening a fresh one if needed."""
+        if self._sock is None:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5.0)
+            sock.connect((self.ip, self.port))
+            self._sock = sock
+        return self._sock
+
+    def _close_connection(self) -> None:
+        """Tears down the persistent socket, if one is open."""
+        if self._sock is not None:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
+            self._sock = None
+
+    def close(self) -> None:
+        """Public, explicit teardown of the persistent connection.
+
+        Called on integration unload/reload and after a one-shot
+        config_flow connection probe, so a stale socket doesn't linger
+        until garbage collection.
+        """
+        self._close_connection()
+
     def _socket_transaction(self, frame: bytes, timeout: float = 2.0) -> Optional[tuple]:
-        """Executes a raw TCP transaction (Connect -> Send -> Receive -> Close).
+        """Executes one request/response transaction over a persistent
+        connection, reusing it across calls instead of reconnecting for
+        every single transaction (a full TCP handshake per read/write adds
+        real overhead when polling every few seconds).
+
+        Any anomaly closes the connection so the *next* transaction starts
+        clean rather than risking a desynced stream: a hard socket error
+        (dead/reset connection) retries once against a freshly reconnected
+        socket within this same call, since that's the case most likely to
+        just be a transient drop (e.g. the boiler closed our idle
+        connection) rather than the boiler being genuinely unreachable. A
+        plain timeout (nothing invalid, just no data in time) closes the
+        connection too but does NOT retry inline -- callers already retry
+        with backoff (get_value/get_values/set_value), and immediately
+        doubling the wait on a possibly-slow-but-alive boiler isn't
+        obviously better than letting that existing retry loop handle it.
+
+        Known limitation: _read_response's buffer is local to one call, so
+        any bytes received past the first valid frame in the same recv()
+        chunk are discarded rather than carried over to the next
+        transaction. Not implemented, because it isn't expected to matter
+        here: this is a strict request/response protocol (the boiler only
+        answers what we just asked), so a recv() spanning more than the
+        current response would only happen for a stale/duplicate frame --
+        exactly the desync case this method already handles by closing
+        and letting the caller retry, not silently misreading data.
 
         Args:
             frame: The binary frame to send.
@@ -434,34 +526,74 @@ class PlumDevice:
             Optional[tuple[int, bytes]]: (func, payload) of the first
             structurally valid response frame, or None on timeout/error.
         """
-        sock = None
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(timeout)
-            sock.connect((self.ip, self.port))
-            sock.send(frame)
+        for attempt in (1, 2):
+            try:
+                sock = self._ensure_connection()
+            except OSError as e:
+                logger.debug("Connect failed (attempt %d/2): %s", attempt, e)
+                self.consecutive_failures += 1
+                if attempt == 2:
+                    return None
+                continue
 
-            buffer = bytearray()
-            deadline = time.time() + timeout
-            while time.time() < deadline:
-                sock.settimeout(max(deadline - time.time(), 0.01))
-                try:
-                    chunk = sock.recv(1024)
-                except socket.timeout:
-                    break
-                if not chunk:
-                    break
-                buffer.extend(chunk)
+            try:
+                sock.settimeout(timeout)
+                sock.send(frame)
+                result = self._read_response(sock, timeout)
+            except OSError as e:
+                logger.debug("Socket transaction failed (attempt %d/2): %s", attempt, e)
+                self._close_connection()
+                self.consecutive_failures += 1
+                if attempt == 2:
+                    return None
+                continue
 
-                result = self._extract_valid_frame(buffer)
-                if result is not None:
-                    return result
-            return None
-        except OSError as e:
-            logger.debug(f"Socket transaction failed: {e}")
-            return None
-        finally:
-            if sock: sock.close()
+            if result is None:
+                # Timed out without finding a valid frame -- don't trust
+                # this connection for the next transaction, but don't
+                # retry inline either (see docstring).
+                self._close_connection()
+                self.consecutive_failures += 1
+                return None
+
+            self.consecutive_failures = 0
+            return result
+        return None
+
+    def _read_response(self, sock: socket.socket, timeout: float) -> Optional[tuple]:
+        """Reads from an already-connected socket until a structurally
+        valid frame is found or the deadline passes.
+
+        Args:
+            sock: The connected socket to read from.
+            timeout: Total time budget, in seconds.
+
+        Returns:
+            Optional[tuple[int, bytes]]: (func, payload), or None if no
+            valid frame arrived in time.
+
+        Raises:
+            OSError: If the peer closes the connection (recv() returns no
+                data) -- treated as a hard failure by the caller, which
+                closes and retries once against a fresh connection, same
+                as any other socket error.
+        """
+        buffer = bytearray()
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            sock.settimeout(max(deadline - time.time(), 0.01))
+            try:
+                chunk = sock.recv(1024)
+            except socket.timeout:
+                break
+            if not chunk:
+                raise OSError("Connection closed by peer")
+            buffer.extend(chunk)
+
+            result = self._extract_valid_frame(buffer)
+            if result is not None:
+                return result
+        return None
 
     def _extract_valid_frame(self, buffer: bytearray) -> Optional[tuple]:
         """Scans a buffer for the first structurally valid response frame.
