@@ -49,6 +49,21 @@ DEFAULT_TTL = 300
 # about instead of implying near-instant detection.
 CONNECTION_LOST_THRESHOLD = 3
 
+# _validate_value's max_delta check (device map "max_delta", currently only
+# set for tempwthr, 0.5) rejects a reading that jumps too far from the last
+# *accepted* value in one step -- meant to smooth out a single noisy
+# reading. Without an escape hatch, a reading that's rejected once is
+# compared against that same stale reference forever: if the real value
+# keeps moving further away (e.g. overnight cooling), it can never get
+# back within max_delta of a value from hours ago, and the entity freezes
+# indefinitely. Confirmed against real hardware (2026-08-13/14): tempwthr
+# got stuck at a single value for 15+ hours this way, while every other
+# entity kept updating normally (the coordinator/connection were fine).
+# After this many consecutive rejections, trust the new reading instead of
+# the frozen cache -- it's more likely a real change than 3+ cycles of
+# noise on the same parameter.
+MAX_DELTA_REJECTIONS = 3
+
 # Definitions of physical limits for validation
 VALIDATION_RANGES = {
     "temp": (-20, 100.0),
@@ -94,6 +109,9 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self._timestamps: Dict[str, float] = {}
         self._cache_lock = asyncio.Lock()
         self.ttl = DEFAULT_TTL
+        # Consecutive max_delta rejections per slug -- see
+        # MAX_DELTA_REJECTIONS above for why this exists.
+        self._delta_rejection_counts: Dict[str, int] = {}
 
         super().__init__(
             hass,
@@ -205,19 +223,26 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
 
         # B. Specific bounds check (JSON)
         if (json_min is not None or json_max is not None) and isinstance(raw_val, (int, float)):
-            is_valid = True
-            
+            # Min/max are physical-plausibility bounds (e.g. a temperature
+            # probe can't read -50degC) -- a violation here is never given
+            # the max_delta escape hatch below, no matter how many times
+            # it repeats.
             if json_min is not None and raw_val < json_min:
-                is_valid = False
-            if json_max is not None and raw_val > json_max:
-                is_valid = False
-            # Fix typo from original code: is_valide -> is_valid
-            if json_max_delta is not None and cached_val is not None and abs(cached_val - raw_val) > json_max_delta:
-                is_valid = False
-                
-            if not is_valid:
                 return False, None
-        
+            if json_max is not None and raw_val > json_max:
+                return False, None
+
+            if json_max_delta is not None and cached_val is not None and abs(cached_val - raw_val) > json_max_delta:
+                rejections = self._delta_rejection_counts.get(slug, 0) + 1
+                if rejections < MAX_DELTA_REJECTIONS:
+                    self._delta_rejection_counts[slug] = rejections
+                    return False, None
+                # Escape hatch: this many consecutive rejections means the
+                # value probably genuinely moved, not noise -- see
+                # MAX_DELTA_REJECTIONS. Falls through to the accepted
+                # return below, which also clears the counter.
+
+            self._delta_rejection_counts.pop(slug, None)
             return True, raw_val
 
         # C. Generic bounds check (Fallback)
@@ -226,8 +251,8 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                 if keyword in slug:
                     if not (min_v <= raw_val <= max_v):
                         return False, None
-                    break 
-                    
+                    break
+
         return True, raw_val
         
 
