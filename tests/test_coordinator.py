@@ -23,19 +23,16 @@ class MockDevice:
 def coordinator(hass):
     """Fixture to create a coordinator instance with a mocked device.
 
-    Built via object.__new__ instead of PlumDataUpdateCoordinator(hass,
-    device): DataUpdateCoordinator.__init__ on current homeassistant
-    releases calls frame.report_usage(), which raises "Frame helper not
-    set up" against this project's lightweight hass=MagicMock() fixture
-    (no real frame-helper setup, unlike a full pytest-homeassistant-custom-
-    component harness). Only what _validate_value() actually reads is
-    seeded here.
+    Uses the real constructor now that PlumDataUpdateCoordinator passes
+    config_entry= explicitly to DataUpdateCoordinator (so the frame.report_usage
+    ContextVar-fallback path -- which raised against this project's
+    lightweight hass=MagicMock() -- is no longer taken).
     """
-    coord = object.__new__(PlumDataUpdateCoordinator)
-    coord.device = MockDevice()
+    entry = MagicMock()
+    entry.entry_id = "entry_test"
+    coord = PlumDataUpdateCoordinator(hass, MockDevice(), entry, update_interval=30)
     # Pre-fill cache to simulate previous state
     coord._cache = {"temp_strict_json": 20}
-    coord._delta_rejection_counts = {}
     return coord
 
 def test_validate_value_protocol_errors(coordinator):

@@ -53,6 +53,14 @@ def _mock_issues(monkeypatch):
 def _make_coordinator(device=None, available_slugs=None, cache=None, timestamps=None, ttl=300, entry_id="entry123"):
     coordinator = object.__new__(PlumDataUpdateCoordinator)
     coordinator.device = device if device is not None else MagicMock()
+    # config_entry.async_create_background_task schedules the repeated-write
+    # coroutine; here just run it on the loop so the existing assertions
+    # (which await afterwards) still observe its effects.
+    config_entry = MagicMock()
+    config_entry.async_create_background_task = MagicMock(
+        side_effect=lambda _hass, coro, **_kw: asyncio.ensure_future(coro)
+    )
+    coordinator.config_entry = config_entry
     # _validate_value() does `self.device.params_map.get(slug, {})`; on a
     # bare MagicMock, .params_map and its .get() are themselves mocks, not
     # a real dict, which breaks the JSON-bounds comparisons downstream.
@@ -131,63 +139,85 @@ class TestWriteConfirmation:
 
 
 class TestBatchedPolling:
+    # circuit2basetemp is in STATIC_SLUGS (a NUMBER_TYPES setpoint) -> long
+    # TTL; tempcwu is live telemetry -> TTL 0, re-read every cycle.
+
     @pytest.mark.asyncio
-    async def test_fresh_cache_hits_skip_fetching_entirely(self):
+    async def test_fresh_static_slug_is_served_from_cache_without_fetching(self):
         device = MagicMock()
         device.get_values = AsyncMock(return_value={})
         coordinator = _make_coordinator(
             device=device,
-            available_slugs=["tempcwu"],
-            cache={"tempcwu": 59.2},
-            timestamps={"tempcwu": time.time()},
+            available_slugs=["circuit2basetemp"],
+            cache={"circuit2basetemp": 45},
+            timestamps={"circuit2basetemp": time.time()},
             ttl=300,
         )
 
         data = await coordinator._async_update_data()
 
         device.get_values.assert_not_called()
-        assert data["tempcwu"] == 59.2
+        assert data["circuit2basetemp"] == 45
+
+    @pytest.mark.asyncio
+    async def test_live_slug_is_refetched_even_with_a_fresh_cache_entry(self):
+        """The whole point of the two-tier TTL: a temperature must not be
+        served stale from cache just because it was read <5min ago.
+        """
+        device = MagicMock()
+        device.get_values = AsyncMock(return_value={"tempcwu": 60.0})
+        coordinator = _make_coordinator(
+            device=device,
+            available_slugs=["tempcwu"],
+            cache={"tempcwu": 59.2},
+            timestamps={"tempcwu": time.time()},  # just read, still "fresh"
+        )
+
+        data = await coordinator._async_update_data()
+
+        device.get_values.assert_awaited_once_with(["tempcwu"], retries=2)
+        assert data["tempcwu"] == 60.0
 
     @pytest.mark.asyncio
     async def test_stale_slugs_are_fetched_in_one_batched_call(self):
         device = MagicMock()
-        device.get_values = AsyncMock(return_value={"a": 10, "b": 20})
-        coordinator = _make_coordinator(device=device, available_slugs=["a", "b"])
+        device.get_values = AsyncMock(return_value={"tempcwu": 10, "tempbuforup": 20})
+        coordinator = _make_coordinator(device=device, available_slugs=["tempcwu", "tempbuforup"])
 
         data = await coordinator._async_update_data()
 
         # One call for both slugs -- not one connection per parameter.
-        device.get_values.assert_awaited_once_with(["a", "b"], retries=2)
-        assert data == {"a": 10, "b": 20}
-        assert coordinator._cache == {"a": 10, "b": 20}
+        device.get_values.assert_awaited_once_with(["tempcwu", "tempbuforup"], retries=2)
+        assert data == {"tempcwu": 10, "tempbuforup": 20}
+        assert coordinator._cache == {"tempcwu": 10, "tempbuforup": 20}
 
     @pytest.mark.asyncio
     async def test_slug_missing_from_batch_result_falls_back_to_cache(self):
         device = MagicMock()
-        device.get_values = AsyncMock(return_value={})  # "a" didn't answer this round
+        device.get_values = AsyncMock(return_value={})  # didn't answer this round
         coordinator = _make_coordinator(
-            device=device, available_slugs=["a"], cache={"a": 42}, timestamps={"a": 0}
+            device=device, available_slugs=["tempcwu"], cache={"tempcwu": 42}, timestamps={"tempcwu": 0}
         )
 
         data = await coordinator._async_update_data()
 
-        assert data["a"] == 42  # held last known state, not dropped
+        assert data["tempcwu"] == 42  # held last known state, not dropped
 
     @pytest.mark.asyncio
-    async def test_mixed_fresh_and_stale_only_batches_the_stale_ones(self):
+    async def test_fresh_static_and_stale_live_only_batches_the_live_one(self):
         device = MagicMock()
-        device.get_values = AsyncMock(return_value={"stale_slug": 7})
+        device.get_values = AsyncMock(return_value={"tempcwu": 7})
         coordinator = _make_coordinator(
             device=device,
-            available_slugs=["fresh_slug", "stale_slug"],
-            cache={"fresh_slug": 1, "stale_slug": 0},
-            timestamps={"fresh_slug": time.time(), "stale_slug": 0},
+            available_slugs=["circuit2basetemp", "tempcwu"],
+            cache={"circuit2basetemp": 1, "tempcwu": 0},
+            timestamps={"circuit2basetemp": time.time(), "tempcwu": time.time()},
         )
 
         data = await coordinator._async_update_data()
 
-        device.get_values.assert_awaited_once_with(["stale_slug"], retries=2)
-        assert data == {"fresh_slug": 1, "stale_slug": 7}
+        device.get_values.assert_awaited_once_with(["tempcwu"], retries=2)
+        assert data == {"circuit2basetemp": 1, "tempcwu": 7}
 
 
 class TestWriteRejectedIssue:
@@ -338,3 +368,50 @@ class TestDetectAvailableParametersIncludesSwitchesAndSelects:
 
         assert a_switch_slug in coordinator.available_slugs
         assert a_select_slug in coordinator.available_slugs
+
+
+class TestDetectionRobustness:
+    @pytest.mark.asyncio
+    async def test_slugs_missing_from_a_poisoned_batch_are_re_probed_individually(self):
+        """The boiler fails a whole batch on one unrecognised PID. A valid
+        slug lost that way must be recovered by an individual re-read; a
+        genuinely absent one stays out.
+        """
+        device = MagicMock()
+        device.params_map = {"tempcwu": {}, "tempbuforup": {}, "ghostparam": {}}
+        # Batched read only answered one; the other real slug was collateral
+        # damage of a poisoned batch, "ghostparam" is genuinely absent.
+        device.get_values = AsyncMock(return_value={"tempcwu": 50.0})
+        device.get_value = AsyncMock(side_effect=lambda slug, retries=2: (
+            21.0 if slug == "tempbuforup" else None
+        ))
+        coordinator = _make_coordinator(device=device)
+
+        await coordinator._detect_available_parameters()
+
+        assert set(coordinator.available_slugs) == {"tempcwu", "tempbuforup"}
+        assert "ghostparam" not in coordinator.available_slugs
+
+    @pytest.mark.asyncio
+    async def test_scan_seeds_cache_so_first_poll_does_not_reread_everything(self):
+        device = MagicMock()
+        device.params_map = {"tempcwu": {}, "circuit2basetemp": {}}
+        device.get_values = AsyncMock(return_value={"tempcwu": 55.0, "circuit2basetemp": 40})
+        device.get_value = AsyncMock(return_value=None)
+        coordinator = _make_coordinator(device=device)
+
+        await coordinator._detect_available_parameters()
+
+        assert coordinator._cache["circuit2basetemp"] == 40
+        assert coordinator._cache["tempcwu"] == 55.0
+        assert coordinator._timestamps["circuit2basetemp"] > 0
+
+        # Next poll: the static slug is served from the seeded cache, only
+        # the live one is actually re-read.
+        device.get_values.reset_mock()
+        device.get_values.return_value = {"tempcwu": 56.0}
+        data = await coordinator._async_update_data()
+
+        device.get_values.assert_awaited_once_with(["tempcwu"], retries=2)
+        assert data["circuit2basetemp"] == 40
+        assert data["tempcwu"] == 56.0

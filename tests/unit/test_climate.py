@@ -10,6 +10,7 @@ re-polled, and `coordinator.data.get(active_slug)` stayed None forever
 """
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -82,6 +83,9 @@ async def test_detection_targets_include_circuit_active_slugs():
     """The coordinator's initial scan must probe circuitNactive."""
     coord = object.__new__(PlumDataUpdateCoordinator)
     coord.available_slugs = []
+    coord._cache = {}
+    coord._timestamps = {}
+    coord._cache_lock = asyncio.Lock()
 
     captured: dict = {}
 

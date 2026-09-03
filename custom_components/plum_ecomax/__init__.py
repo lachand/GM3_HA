@@ -66,7 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         ) from err
 
     update_interval = entry.data.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
-    coordinator = PlumDataUpdateCoordinator(hass, device, entry.entry_id, update_interval=update_interval)
+    coordinator = PlumDataUpdateCoordinator(hass, device, entry, update_interval=update_interval)
     
     await coordinator.async_config_entry_first_refresh()
 

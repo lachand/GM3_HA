@@ -10,6 +10,7 @@ import time
 from datetime import timedelta
 from typing import Any, Dict, Tuple, Optional
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -26,6 +27,7 @@ from .const import (
     CLIMATE_TYPES,
     NUMBER_TYPES,
     SCHEDULE_TYPES,
+    STATIC_SLUGS,
     WATER_HEATER_TYPES,
     SWITCH_TYPES,
     SELECT_TYPES,
@@ -85,7 +87,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self,
         hass: HomeAssistant,
         device: "PlumDevice",
-        entry_id: str,
+        config_entry: ConfigEntry,
         update_interval: int = UPDATE_INTERVAL,
     ):
         """Initializes the coordinator.
@@ -93,21 +95,28 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         Args:
             hass: Home Assistant core instance.
             device: The low-level PlumDevice instance.
-            entry_id: The config entry ID -- scopes repair issue ids so two
-                boilers (two config entries) never collide on the same
-                issue (same reasoning as device.py's device_info helpers).
+            config_entry: The config entry this coordinator belongs to.
+                Passed explicitly to DataUpdateCoordinator (rather than
+                relying on the current_entry ContextVar fallback), and its
+                entry_id scopes repair issue ids so two boilers never
+                collide (same reasoning as device.py's device_info helpers).
             update_interval: Polling interval in seconds. Defaults to
                 UPDATE_INTERVAL, overridable per config entry (see
-                CONF_UPDATE_INTERVAL in const.py).
+                CONF_UPDATE_INTERVAL in const.py). Also the effective
+                freshness of live telemetry -- see STATIC_SLUGS / the
+                per-slug TTL in _async_update_data.
         """
         self.device = device
-        self.entry_id = entry_id
+        self.entry_id = config_entry.entry_id
         self.available_slugs: list[str] = []
 
         # Cache System
         self._cache: Dict[str, Any] = {}
         self._timestamps: Dict[str, float] = {}
         self._cache_lock = asyncio.Lock()
+        # TTL for slugs in STATIC_SLUGS (setpoints, curves, schedules,
+        # names): long, they don't change on their own. Live telemetry
+        # (everything else) is re-read every cycle -- see _async_update_data.
         self.ttl = DEFAULT_TTL
         # Consecutive max_delta rejections per slug -- see
         # MAX_DELTA_REJECTIONS above for why this exists.
@@ -116,6 +125,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=update_interval),
         )
@@ -132,18 +142,21 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         if not self.available_slugs:
             await self._detect_available_parameters()
 
-        # 1. Split into cache hits vs. slugs that need a fresh read
+        # 1. Split into cache hits vs. slugs that need a fresh read.
+        # STATIC_SLUGS (setpoints, curves, schedules, names) get the long
+        # TTL; everything else is live telemetry and re-read every cycle
+        # (TTL 0), so the configured polling interval is what actually
+        # bounds how stale a temperature can get.
         to_fetch = []
-        for slug in self.available_slugs:
-            async with self._cache_lock:
+        async with self._cache_lock:
+            for slug in self.available_slugs:
+                ttl = self.ttl if slug in STATIC_SLUGS else 0
                 last_update = self._timestamps.get(slug, 0)
-                is_fresh = (now - last_update) < self.ttl
                 cached_val = self._cache.get(slug)
-
-            if is_fresh and cached_val is not None:
-                data[slug] = cached_val
-            else:
-                to_fetch.append(slug)
+                if (now - last_update) < ttl and cached_val is not None:
+                    data[slug] = cached_val
+                else:
+                    to_fetch.append(slug)
 
         # 2. Batch-fetch everything stale in as few frames as possible
         # (spec 1.5.3.12 allows several parameter blocks per request), instead
@@ -282,9 +295,15 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(self._cache)
         _LOGGER.info("Optimistic set for %s=%s. Launching background sends.", slug, value)
 
-        # 2. Launch background task for repeated sending
-        # This prevents blocking the UI or the event loop
-        asyncio.create_task(self._perform_repeated_write(slug, value, previous_val))
+        # 2. Repeated sending on a background task tied to the config entry,
+        # so an in-flight write (up to 5 attempts x 2s) is cancelled on
+        # unload/reload instead of running on against a closed socket and
+        # calling into hass after teardown.
+        self.config_entry.async_create_background_task(
+            self.hass,
+            self._perform_repeated_write(slug, value, previous_val),
+            name=f"{DOMAIN} write {slug}",
+        )
 
         return True
 
@@ -395,10 +414,43 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         # Dedupe while preserving order, then read everything in as few
         # batched frames as possible instead of one connection per slug.
         candidates = [slug for slug in dict.fromkeys(targets) if slug in self.device.params_map]
-        values = await self.device.get_values(candidates, retries=5)
+        values = dict(await self.device.get_values(candidates, retries=5))
+
+        # This boiler is known to fail an entire batch when it contains one
+        # PID it doesn't recognise (IMPROVEMENT_PLAN.md section F,
+        # tools/scan_device_map.py) -- and the detection candidate list is
+        # exactly where unrecognised-but-catalogued PIDs turn up (all 7
+        # circuits' curves, every mixer, ...). A poisoned batch would drop
+        # valid slugs sharing it from available_slugs -> missing entities.
+        # If the batched read got *some* answers but not all, re-read the
+        # rest one-by-one (a genuinely-absent parameter still returns None
+        # individually and stays out; a valid one only lost to poisoning is
+        # recovered). One-time cost at startup.
+        if values:
+            missing = [slug for slug in candidates if slug not in values]
+            if missing:
+                _LOGGER.debug(
+                    "Batched scan returned %d/%d; re-probing %d slug(s) individually",
+                    len(values), len(candidates), len(missing),
+                )
+                for slug in missing:
+                    val = await self.device.get_value(slug, retries=2)
+                    if val is not None:
+                        values[slug] = val
 
         # Filter invalid values (999.0 often indicates a disconnected probe)
-        valid_slugs = [slug for slug, val in values.items() if val is not None and val != 999.0]
+        valid = {slug: val for slug, val in values.items() if val is not None and val != 999.0}
 
-        self.available_slugs = list(set(valid_slugs))
+        self.available_slugs = list(valid)
+
+        # Seed the cache from the scan so the first _async_update_data cycle
+        # doesn't immediately re-read everything it just read here. Live
+        # slugs (TTL 0) get re-read next cycle anyway; this mainly spares
+        # the STATIC_SLUGS a redundant round-trip right at startup.
+        seed_now = time.time()
+        async with self._cache_lock:
+            for slug, val in valid.items():
+                self._cache.setdefault(slug, val)
+                self._timestamps.setdefault(slug, seed_now)
+
         _LOGGER.info("%d active parameters retained.", len(self.available_slugs))

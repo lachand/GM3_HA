@@ -321,3 +321,22 @@ for day_id, (suffix_am, suffix_pm) in WEEKDAY_TO_SLUGS.items():
     slug_pm = f"hdw{suffix_pm}"
     SCHEDULE_TYPES[slug_am] = "DHW AM"
     SCHEDULE_TYPES[slug_pm] = "DHW PM"
+
+
+# --- POLLING FRESHNESS ---
+# Slugs that essentially never change on their own: setpoints, heating
+# curves, weekly-schedule bitmasks, min/max bounds, circuit names, serial.
+# The coordinator polls these with a long TTL (coordinator.DEFAULT_TTL).
+# Everything else an entity reads is treated as live telemetry and re-read
+# every polling cycle, so the configurable polling interval actually governs
+# how fresh sensor data is (previously the hardcoded 300s TTL did, making
+# the interval almost cosmetic -- a temperature refreshed once every 5 min
+# regardless of a 10-300s setting).
+STATIC_SLUGS = frozenset(
+    set(NUMBER_TYPES)
+    | set(SCHEDULE_TYPES)
+    | set(DEVICE_INFO_PARAMS)
+    | {f"circuit{i}name" for i in range(1, 8)}
+    | {f"circuit{i}comforttemp" for i in range(1, 8)}
+    | {"hdwtsetpoint", "hdwminsettemp", "hdwmaxsettemp"}
+)
