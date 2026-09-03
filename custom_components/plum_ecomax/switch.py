@@ -18,8 +18,16 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONFIG_SWITCHES, DOMAIN, SWITCH_TYPES
 from .device import boiler_device_info, hdw_device_info
+from .solar_dump import async_start_hold, async_stop_for_entry
 
 HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce", "hdwstartlegion"}
+
+# This switch doesn't just write a parameter -- the boiler ignores the DHW
+# pump force unless it's in manual mode. Turning it on enters manual mode
+# then forces the pump; turning it off stops the pump and (if we entered it)
+# leaves manual mode. Handled by solar_dump, which also guarantees the
+# return to automatic on reload / HA shutdown.
+MANUAL_MODE_BACKED = "hdwpumpforce"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,8 +119,14 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         _LOGGER.info("Turning ON %s (%s) -> %s", self._log_name, self._slug, self._on_value)
+        if self._slug == MANUAL_MODE_BACKED:
+            await async_start_hold(self.coordinator.hass, self.coordinator, self._entry_id)
+            return
         await self.coordinator.async_set_value(self._slug, self._on_value)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         _LOGGER.info("Turning OFF %s (%s) -> %s", self._log_name, self._slug, self._off_value)
+        if self._slug == MANUAL_MODE_BACKED:
+            await async_stop_for_entry(self.coordinator.hass, self._entry_id)
+            return
         await self.coordinator.async_set_value(self._slug, self._off_value)

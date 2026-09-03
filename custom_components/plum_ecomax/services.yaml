@@ -64,3 +64,29 @@ solar_to_buffer:
           max: 120
           unit_of_measurement: min
           mode: box
+    start_temp:
+      name: Start temperature
+      description: >
+        Override the configured start threshold for this call. The dump is not
+        started if the DHW tank is below this temperature.
+      required: false
+      example: 55
+      selector:
+        number:
+          min: 25
+          max: 75
+          unit_of_measurement: "°C"
+          mode: box
+    stop_temp:
+      name: Stop temperature
+      description: >
+        Override the configured stop threshold for this call. The dump stops
+        once the DHW tank drops to this temperature.
+      required: false
+      example: 45
+      selector:
+        number:
+          min: 25
+          max: 75
+          unit_of_measurement: "°C"
+          mode: box

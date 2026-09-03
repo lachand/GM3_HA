@@ -379,6 +379,12 @@
             },
             "circuit7maxsetpointcooling": {
                 "name": "Cooling setpoint max"
+            },
+            "solar_dump_start_temp": {
+                "name": "Solar dump start temperature"
+            },
+            "solar_dump_stop_temp": {
+                "name": "Solar dump stop temperature"
             }
         },
         "switch": {
@@ -458,6 +464,14 @@
                 "duration": {
                     "name": "Duration",
                     "description": "How long to force the pump, in minutes (capped at 120)."
+                },
+                "start_temp": {
+                    "name": "Start temperature",
+                    "description": "Override the configured start threshold for this call. The dump is not started if the DHW tank is below this temperature."
+                },
+                "stop_temp": {
+                    "name": "Stop temperature",
+                    "description": "Override the configured stop threshold for this call. The dump stops once the DHW tank drops to this temperature."
                 }
             }
         }

@@ -8,11 +8,19 @@ or other adjustable settings defined in `NUMBER_TYPES`.
 import logging
 import re
 
-from homeassistant.components.number import NumberEntity
-from homeassistant.const import EntityCategory
+from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
+from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_ACTIVE_CIRCUITS, DOMAIN, NUMBER_TYPES
+from .const import (
+    CONF_ACTIVE_CIRCUITS,
+    DOMAIN,
+    NUMBER_TYPES,
+    SOLAR_DUMP_START_TEMP_DEFAULT,
+    SOLAR_DUMP_STOP_TEMP_DEFAULT,
+    SOLAR_DUMP_TEMP_MAX,
+    SOLAR_DUMP_TEMP_MIN,
+)
 from .device import boiler_device_info, circuit_device_info, hdw_device_info, mixers_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,12 +84,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """
     coordinator = hass.data[DOMAIN][entry.entry_id]
     selected_circuits = entry.data.get(CONF_ACTIVE_CIRCUITS, [])
-    entities = [
+    entities: list[NumberEntity] = [
         PlumEcomaxNumber(coordinator, entry, slug, NUMBER_TYPES[slug])
         for slug in active_number_slugs(coordinator.device.params_map, selected_circuits)
     ]
-    if entities:
-        async_add_entities(entities)
+    entities.append(PlumSolarDumpThreshold(coordinator, entry, "start"))
+    entities.append(PlumSolarDumpThreshold(coordinator, entry, "stop"))
+    async_add_entities(entities)
 
 
 class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
@@ -189,3 +198,58 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
             value: The new value to set.
         """
         await self.coordinator.async_set_value(self._slug, value)
+
+
+class PlumSolarDumpThreshold(RestoreNumber):
+    """A DHW-temperature guard rail for the solar dump (see solar_dump.py).
+
+    This is NOT a boiler parameter -- it's a Home Assistant-local setting.
+    Its value is persisted by RestoreNumber across restarts and mirrored
+    onto the coordinator (coordinator.solar_dump_{start,stop}_temp) so
+    solar_dump.py can read it without a fragile entity-id lookup.
+
+    kind = "start": a dump won't begin below this DHW temperature.
+    kind = "stop":  a running dump stops once the DHW tank drops to this.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_native_min_value = SOLAR_DUMP_TEMP_MIN
+    _attr_native_max_value = SOLAR_DUMP_TEMP_MAX
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+
+    _DEFAULTS = {
+        "start": SOLAR_DUMP_START_TEMP_DEFAULT,
+        "stop": SOLAR_DUMP_STOP_TEMP_DEFAULT,
+    }
+    _ICONS = {"start": "mdi:thermometer-chevron-up", "stop": "mdi:thermometer-chevron-down"}
+
+    def __init__(self, coordinator, entry, kind: str):
+        self._coordinator = coordinator
+        self._entry_id = entry.entry_id
+        self._kind = kind
+        self._attr_translation_key = f"solar_dump_{kind}_temp"
+        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_number_solar_dump_{kind}_temp"
+        self._attr_icon = self._ICONS[kind]
+        self._attr_native_value = float(self._DEFAULTS[kind])
+
+    @property
+    def device_info(self) -> dict:
+        return boiler_device_info(self._entry_id, self._coordinator.data.get("uid"))
+
+    def _push(self) -> None:
+        setattr(self._coordinator, f"solar_dump_{self._kind}_temp", self._attr_native_value)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_number_data()
+        if last is not None and last.native_value is not None:
+            self._attr_native_value = float(last.native_value)
+        self._push()
+
+    async def async_set_native_value(self, value: float) -> None:
+        self._attr_native_value = float(value)
+        self._push()
+        self.async_write_ha_state()

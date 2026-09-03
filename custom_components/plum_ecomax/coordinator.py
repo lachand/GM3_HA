@@ -31,6 +31,8 @@ from .const import (
     SCHEDULE_TYPES,
     SELECT_TYPES,
     SENSOR_TYPES,
+    SOLAR_DUMP_START_TEMP_DEFAULT,
+    SOLAR_DUMP_STOP_TEMP_DEFAULT,
     STATIC_SLUGS,
     SWITCH_TYPES,
     UPDATE_INTERVAL,
@@ -111,6 +113,13 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self.device = device
         self.entry_id = config_entry.entry_id
         self.available_slugs: list[str] = []
+
+        # DHW-temperature guard rails for solar_dump.py. Seeded with the
+        # defaults so a dump started before the number entities restore
+        # still has real thresholds; PlumSolarDumpThreshold (number.py)
+        # overwrites these on restore and on every user change.
+        self.solar_dump_start_temp: float = SOLAR_DUMP_START_TEMP_DEFAULT
+        self.solar_dump_stop_temp: float = SOLAR_DUMP_STOP_TEMP_DEFAULT
 
         # Cache System
         self._cache: dict[str, Any] = {}

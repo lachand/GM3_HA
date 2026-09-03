@@ -43,6 +43,16 @@ SOLAR_DUMP_FORCE_SLUG = "hdwpumpforce"
 SOLAR_DUMP_FORCE_VALUE = 512
 SOLAR_DUMP_MAX_MINUTES = 120
 
+# DHW-temperature guard rails for the solar dump (service + the "DHW pump ->
+# Solar buffer" switch). Exposed as two RestoreNumber entities; the values
+# are mirrored onto the coordinator so solar_dump.py can read them. A dump
+# won't start below the start threshold, and stops once the DHW tank drops
+# to the stop threshold -- so it doesn't drain the tank too far.
+SOLAR_DUMP_START_TEMP_DEFAULT = 50
+SOLAR_DUMP_STOP_TEMP_DEFAULT = 42
+SOLAR_DUMP_TEMP_MIN = 25
+SOLAR_DUMP_TEMP_MAX = 75
+
 # --- CONFIGURATION SWITCH (ON/OFF) ---
 SWITCH_TYPES = {
     # Format: "slug": (friendly_name, on_value, off_value)

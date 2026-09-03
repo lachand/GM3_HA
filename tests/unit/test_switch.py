@@ -10,7 +10,7 @@ missing here before device.py existed (IMPROVEMENT_PLAN.md section C).
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -99,27 +99,61 @@ class TestIsOn:
 class TestWritePath:
     @pytest.mark.asyncio
     async def test_turn_on_writes_on_value(self):
-        name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
+        # hdwstartoneloading is a plain parameter switch (hdwpumpforce is not
+        # anymore -- see TestManualModeBackedSwitch).
+        name, on_value, off_value = SWITCH_TYPES["hdwstartoneloading"]
         coordinator = _make_coordinator({}, {})
         switch = PlumEconetSwitch(
-            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+            coordinator, "entry123", "hdwstartoneloading", name, on_value, off_value
         )
 
         await switch.async_turn_on()
 
-        coordinator.async_set_value.assert_awaited_once_with("hdwpumpforce", 512)
+        coordinator.async_set_value.assert_awaited_once_with("hdwstartoneloading", 1)
 
     @pytest.mark.asyncio
     async def test_turn_off_writes_off_value(self):
-        name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
+        name, on_value, off_value = SWITCH_TYPES["hdwstartoneloading"]
         coordinator = _make_coordinator({}, {})
         switch = PlumEconetSwitch(
-            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+            coordinator, "entry123", "hdwstartoneloading", name, on_value, off_value
         )
 
         await switch.async_turn_off()
 
-        coordinator.async_set_value.assert_awaited_once_with("hdwpumpforce", 0)
+        coordinator.async_set_value.assert_awaited_once_with("hdwstartoneloading", 0)
+
+
+class TestManualModeBackedSwitch:
+    """The hdwpumpforce switch doesn't just write the parameter -- it routes
+    through solar_dump so it enters/leaves manual mode (the boiler ignores
+    the force otherwise). See IMPROVEMENT_PLAN.md section N."""
+
+    @pytest.mark.asyncio
+    async def test_turn_on_calls_start_hold(self):
+        name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
+        coordinator = _make_coordinator({}, {})
+        coordinator.hass = MagicMock()
+        switch = PlumEconetSwitch(coordinator, "entryX", "hdwpumpforce", name, on_value, off_value)
+
+        with patch("custom_components.plum_ecomax.switch.async_start_hold") as start:
+            await switch.async_turn_on()
+
+        start.assert_awaited_once_with(coordinator.hass, coordinator, "entryX")
+        coordinator.async_set_value.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_turn_off_calls_stop_for_entry(self):
+        name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
+        coordinator = _make_coordinator({}, {})
+        coordinator.hass = MagicMock()
+        switch = PlumEconetSwitch(coordinator, "entryX", "hdwpumpforce", name, on_value, off_value)
+
+        with patch("custom_components.plum_ecomax.switch.async_stop_for_entry") as stop:
+            await switch.async_turn_off()
+
+        stop.assert_awaited_once_with(coordinator.hass, "entryX")
+        coordinator.async_set_value.assert_not_called()
 
 
 class TestDeviceRouting:

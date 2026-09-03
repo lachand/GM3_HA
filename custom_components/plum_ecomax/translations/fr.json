@@ -379,6 +379,12 @@
             },
             "circuit7maxsetpointcooling": {
                 "name": "Consigne refroidissement max"
+            },
+            "solar_dump_start_temp": {
+                "name": "Décharge solaire — température de départ ECS"
+            },
+            "solar_dump_stop_temp": {
+                "name": "Décharge solaire — température d'arrêt ECS"
             }
         },
         "switch": {
@@ -458,6 +464,14 @@
                 "duration": {
                     "name": "Durée",
                     "description": "Durée du forçage de la pompe, en minutes (plafonnée à 120)."
+                },
+                "start_temp": {
+                    "name": "Température de départ",
+                    "description": "Remplace le seuil de départ configuré pour cet appel. La décharge n'est pas lancée si le ballon ECS est sous cette température."
+                },
+                "stop_temp": {
+                    "name": "Température d'arrêt",
+                    "description": "Remplace le seuil d'arrêt configuré pour cet appel. La décharge s'arrête dès que le ballon ECS descend à cette température."
                 }
             }
         }

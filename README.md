@@ -18,7 +18,7 @@ This integration aims to support the primary functions of the ecoMAX controller:
 * **Monitoring:** Read current temperatures (feeder, boiler, outside, etc.), boiler status, and fuel consumption.
 * **Control:** Adjust target temperatures and operation modes, per-circuit heating curves, cooling setpoints, the DHW anti-legionella cycle, and the DHW circulation pump timing.
 * **Weekly schedule:** Read the comfort/eco weekly program per circuit and for DHW as a calendar, and rewrite it with the **`plum_ecomax.set_schedule`** service (target day(s), one or more comfort time ranges — everything else becomes eco).
-* **Manual mode & solar dump:** A **Manual mode** switch (puts the controller in manual control, the only state in which the *force* switches physically do anything), and a **`plum_ecomax.solar_to_buffer`** service that enters manual mode, forces the DHW pump for a capped duration, then guarantees a return to automatic — used to bank solar-heated DHW into the buffer tanks ahead of a forecast overcast spell.
+* **Manual mode & solar dump:** The **DHW pump → Solar buffer** switch enters manual mode, forces the DHW transfer pump, and (when turned off) stops it and leaves manual mode — so it actually does something, unlike a bare force parameter. The **`plum_ecomax.solar_to_buffer`** service does the same on a capped timer instead of a switch — used to bank solar-heated DHW into the buffer tanks ahead of a forecast overcast spell. A plain **Manual mode** switch (operating-mode register) is also exposed. All paths guarantee a return to automatic — on the timer, on reload, on HA shutdown.
 * **Sensors:** Binary sensors for pumps and fan status, plus the boiler's serial number (shown on the device page) and any circuit names configured on the physical panel.
 * **Diagnostics & alerts:** A "manual mode active" binary sensor, coarse alarm-bit indicators, "last communication" / "consecutive failures" link-health sensors, and repair issues in Settings → Repairs when an alarm is active, a write is rejected by the boiler, or the connection is lost.
 * **Reference values:** Buttons to save the current heating-curve/DHW configuration as a reference snapshot and restore it later.
@@ -29,9 +29,18 @@ This integration aims to support the primary functions of the ecoMAX controller:
 
 ### A note on "force" parameters
 
-Switches like *Force pompe ECS → ballon solaire* write the same parameter the boiler's own front panel uses, but the boiler only applies it while the controller is in **manual mode**. Outside manual mode, the boiler's automatic control silently overrides the forced value. The "Manual mode active" binary sensor reflects whether that condition is currently met.
+The boiler applies a *force* parameter (`hdwpumpforce`, and the front-panel forces in general) only while the controller is in **manual mode** (operating-mode register = manual). Outside manual mode the boiler's automatic control silently overrides the forced value. The "Manual mode active" binary sensor reflects whether that condition is currently met.
 
-The **Manual mode** switch writes that same operating-mode register the ecoSTER "manual control" service screen uses (confirmed by bus capture). While it's on, the boiler's automatic regulation is disabled — turn it back off when you're done. If the `solar_to_buffer` service ever fails to restore automatic mode, it raises a repair issue in **Settings → Repairs**.
+That's why the **DHW pump → Solar buffer** switch and the `solar_to_buffer` service both drive manual mode for you: switch on / service call → enter manual mode, then force the pump; switch off / timer expiry → stop the pump, then leave manual mode (only if they were the one that entered it — if you flipped the **Manual mode** switch yourself, they leave it alone). If a return to automatic ever fails they raise a repair issue in **Settings → Repairs**.
+
+**Temperature guard rails** (so a transfer doesn't drain the DHW tank too far): two number entities in the boiler device's Configuration section —
+
+* **Solar dump start temperature** (default **50 °C**): a transfer won't start if the DHW tank is already below this. If it would have started (e.g. from an automation), you get a persistent notification instead.
+* **Solar dump stop temperature** (default **42 °C**): a running transfer stops once the DHW tank drops to this.
+
+The `solar_to_buffer` service also takes optional `start_temp` / `stop_temp` to override them for a single call.
+
+While manual mode is on, the boiler's automatic regulation is disabled — the plain **Manual mode** switch is there if you want it directly, just remember to turn it back off.
 
 ### Example: dump solar heat to the buffer before an overcast day
 
@@ -84,9 +93,9 @@ Any of these can be changed later via **Reconfigure** on the integration card, w
 
 Unit and regression tests live in `tests/` (`pytest tests/`). CI runs them on a Python 3.13/3.14 matrix (matching the Home Assistant releases users actually run) alongside `ruff check` / `ruff format --check`, `hassfest`, and HACS validation. Minimum supported Home Assistant: **2025.2**. See `DP_INVENTORY.md` for the catalog of boiler parameters not yet exposed as entities.
 
-### Upgrading to 0.4.0
+### Upgrading to 0.4.x
 
-Adds the **Manual mode** switch and the `plum_ecomax.solar_to_buffer` service (see *A note on "force" parameters* above). No breaking changes.
+Adds the **Manual mode** switch, the **DHW pump → Solar buffer** switch (which now drives manual mode itself), the `plum_ecomax.solar_to_buffer` service, and the **Solar dump start/stop temperature** number entities — see *A note on "force" parameters* above. The temperature guard rails are **active by default** (start 50 °C / stop 42 °C): a `solar_to_buffer` call or a switch-on with the DHW tank below 50 °C no longer runs the pump — adjust the numbers to taste. No other breaking changes.
 
 ### Upgrading to 0.3.0
 
