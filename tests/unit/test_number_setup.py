@@ -12,6 +12,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.const import EntityCategory
 
 from custom_components.plum_ecomax.const import CONF_ACTIVE_CIRCUITS, DOMAIN
 from custom_components.plum_ecomax.number import PlumEcomaxNumber, async_setup_entry
@@ -84,3 +85,35 @@ async def test_async_set_native_value_does_not_truncate_floats():
     await number.async_set_native_value(1.4)
 
     coordinator.async_set_value.assert_awaited_once_with("circuit2curvefloor", 1.4)
+
+
+def _number(slug):
+    coordinator = MagicMock()
+    coordinator.data = {}
+    entry = MagicMock()
+    entry.entry_id = "e1"
+    return PlumEcomaxNumber(coordinator, entry, slug, (0, 60, 1, "mdi:timer"))
+
+
+class TestNewNumberRouting:
+    def test_circulation_slugs_route_to_dhw_device_as_config(self):
+        n = _number("circulationtimework")
+        assert n.entity_category == EntityCategory.CONFIG
+        assert n.device_info["identifiers"] == {(DOMAIN, "e1_hdw")}
+
+    def test_cooling_setpoints_route_to_their_circuit_device(self):
+        n = _number("circuit2maxsetpointcooling")
+        assert n.entity_category == EntityCategory.CONFIG
+        assert n.device_info["identifiers"] == {(DOMAIN, "e1_circuit_2")}
+
+    @pytest.mark.asyncio
+    async def test_cooling_setpoints_are_gated_by_active_circuits(self):
+        params_map = {
+            "circuit2maxsetpointcooling": {"id": 1},
+            "circuit3maxsetpointcooling": {"id": 2},
+        }
+        hass, entry = _make_hass_and_entry(params_map, active_circuits=["2"])
+        added = []
+        await async_setup_entry(hass, entry, lambda e: added.extend(e))
+        slugs = {e._slug for e in added}
+        assert slugs == {"circuit2maxsetpointcooling"}

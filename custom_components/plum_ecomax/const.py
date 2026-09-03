@@ -198,6 +198,9 @@ SENSOR_TYPES = {
     "workstate2": [None, "mdi:chip", None],
     "workstate3": [None, "mdi:chip", None],
     "workstate4": [None, "mdi:chip", None],
+    # DHW circulation pump state (DP_INVENTORY.md "Circulation ECS") -- raw
+    # register, meaning of the bits undocumented, so kept as a diagnostic int.
+    "circulationstate": [None, "mdi:pump", None],
 }
 
 # SENSOR_TYPES slugs shown in the device's "Diagnostic" section instead of
@@ -209,6 +212,7 @@ DIAGNOSTIC_SENSOR_SLUGS = {
     "workstate2",
     "workstate3",
     "workstate4",
+    "circulationstate",
 }
 
 # --- THERMOSTATS ---
@@ -239,17 +243,38 @@ NUMBER_TYPES = {
     "hdwlegionsetpoint": (60, 80, 1, "mdi:bacteria-outline"),
     "hdwlegionday": (0, 7, 1, "mdi:calendar"),
     "hdwlegionhour": (0, 23, 1, "mdi:clock-outline"),
+    # DHW circulation pump timing (DP_INVENTORY.md "Circulation ECS").
+    # Routed to the DHW device, EntityCategory.CONFIG (see number.py's
+    # _ADVANCED_NUMBER_PREFIXES).
+    "circulationtempstart": (20, 60, 1, "mdi:thermometer-water"),
+    "circulationhisttemp": (1, 10, 1, "mdi:thermometer-minus"),
+    "circulationtimework": (0, 60, 1, "mdi:timer-play"),
+    "circulationtimestop": (0, 60, 1, "mdi:timer-pause"),
 }
 
 # Per-circuit heating curve tuning (DP_INVENTORY.md "Circuits — courbes de
 # chauffe & limites"). Circuit 6's device map has no curvefloor/curveradiator
 # entries (only circuits 1-5 and 7 do), so it's skipped for those two.
+# Cooling setpoint bounds (DP_INVENTORY.md "Non catégorisés") exist for all
+# 7 circuits.
 for _circuit_id in range(1, 8):
     if _circuit_id != 6:
         NUMBER_TYPES[f"circuit{_circuit_id}curvefloor"] = (0.1, 4.0, 0.1, "mdi:chart-bell-curve")
         NUMBER_TYPES[f"circuit{_circuit_id}curveradiator"] = (0.1, 4.0, 0.1, "mdi:chart-bell-curve")
     NUMBER_TYPES[f"circuit{_circuit_id}basetemp"] = (20, 90, 1, "mdi:thermometer")
     NUMBER_TYPES[f"circuit{_circuit_id}tempreduction"] = (0, 15, 1, "mdi:thermometer-minus")
+    NUMBER_TYPES[f"circuit{_circuit_id}minsetpointcooling"] = (
+        10,
+        40,
+        1,
+        "mdi:snowflake-thermometer",
+    )
+    NUMBER_TYPES[f"circuit{_circuit_id}maxsetpointcooling"] = (
+        10,
+        40,
+        1,
+        "mdi:snowflake-thermometer",
+    )
 
 
 WEEKDAY_TO_SLUGS = {

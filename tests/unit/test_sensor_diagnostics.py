@@ -1,4 +1,5 @@
 """Unit tests for the link-health diagnostic sensors (sensor.py)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

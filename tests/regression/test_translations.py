@@ -2,6 +2,7 @@
 verbatim copy of it, and every other language file must have the exact same
 key structure (no missing / extra keys).
 """
+
 from __future__ import annotations
 
 import json

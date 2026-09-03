@@ -201,6 +201,9 @@
             },
             "consecutive_failures": {
                 "name": "Échecs de communication consécutifs"
+            },
+            "circulationstate": {
+                "name": "État circulation ECS (brut)"
             }
         },
         "binary_sensor": {
@@ -322,6 +325,60 @@
             },
             "circuit7tempreduction": {
                 "name": "Réduction nocturne Circuit 7"
+            },
+            "circulationtempstart": {
+                "name": "Température de départ circulation ECS"
+            },
+            "circulationhisttemp": {
+                "name": "Hystérésis circulation ECS"
+            },
+            "circulationtimework": {
+                "name": "Durée de marche circulation ECS (min)"
+            },
+            "circulationtimestop": {
+                "name": "Durée d'arrêt circulation ECS (min)"
+            },
+            "circuit1minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit1maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
+            },
+            "circuit2minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit2maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
+            },
+            "circuit3minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit3maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
+            },
+            "circuit4minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit4maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
+            },
+            "circuit5minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit5maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
+            },
+            "circuit6minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit6maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
+            },
+            "circuit7minsetpointcooling": {
+                "name": "Consigne refroidissement min"
+            },
+            "circuit7maxsetpointcooling": {
+                "name": "Consigne refroidissement max"
             }
         },
         "switch": {

@@ -201,6 +201,9 @@
             },
             "consecutive_failures": {
                 "name": "Consecutive communication failures"
+            },
+            "circulationstate": {
+                "name": "DHW Circulation State (raw)"
             }
         },
         "binary_sensor": {
@@ -322,6 +325,60 @@
             },
             "circuit7tempreduction": {
                 "name": "Circuit 7 Night Setback"
+            },
+            "circulationtempstart": {
+                "name": "DHW circulation start temperature"
+            },
+            "circulationhisttemp": {
+                "name": "DHW circulation hysteresis"
+            },
+            "circulationtimework": {
+                "name": "DHW circulation run time (min)"
+            },
+            "circulationtimestop": {
+                "name": "DHW circulation pause time (min)"
+            },
+            "circuit1minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit1maxsetpointcooling": {
+                "name": "Cooling setpoint max"
+            },
+            "circuit2minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit2maxsetpointcooling": {
+                "name": "Cooling setpoint max"
+            },
+            "circuit3minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit3maxsetpointcooling": {
+                "name": "Cooling setpoint max"
+            },
+            "circuit4minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit4maxsetpointcooling": {
+                "name": "Cooling setpoint max"
+            },
+            "circuit5minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit5maxsetpointcooling": {
+                "name": "Cooling setpoint max"
+            },
+            "circuit6minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit6maxsetpointcooling": {
+                "name": "Cooling setpoint max"
+            },
+            "circuit7minsetpointcooling": {
+                "name": "Cooling setpoint min"
+            },
+            "circuit7maxsetpointcooling": {
+                "name": "Cooling setpoint max"
             }
         },
         "switch": {

@@ -26,10 +26,10 @@ _CIRCUIT_SLUG_RE = re.compile(r"^circuit(\d+)")
 _CIRCUIT_OR_MIXER_SLUG_RE = re.compile(r"^(?:circuit|mixer)(\d+)")
 
 # Advanced/rarely-touched settings (heating curves, anti-legionella cycle,
-# forced buffer loading): moved out of the main "Controls" card into the
-# device's "Configuration" section, so they aren't sitting next to everyday
-# controls where they could be nudged by accident.
-_ADVANCED_NUMBER_PREFIXES = ("hdwlegion", "buforlongloadtime")
+# forced buffer loading, DHW circulation timing): moved out of the main
+# "Controls" card into the device's "Configuration" section, so they aren't
+# sitting next to everyday controls where they could be nudged by accident.
+_ADVANCED_NUMBER_PREFIXES = ("hdwlegion", "buforlongloadtime", "circulation")
 
 
 def is_config_category_slug(slug: str) -> bool:
@@ -132,7 +132,7 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
             return circuit_device_info(self._entry_id, int(self._circuit_match.group(1)))
         if self._slug.startswith("mixer"):
             return mixers_device_info(self._entry_id)
-        if self._slug.startswith("hdw"):
+        if self._slug.startswith(("hdw", "circulation")):
             return hdw_device_info(self._entry_id)
         return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
 
