@@ -424,5 +424,25 @@
             "title": "Connexion à la chaudière perdue",
             "description": "{count} tentatives consécutives de communication avec la chaudière ont échoué. Vérifiez que la chaudière est sous tension et joignable sur le réseau à l'adresse IP/port configurés -- les entités afficheront des données obsolètes ou indisponibles jusqu'au rétablissement de la connexion."
         }
+    },
+    "services": {
+        "set_schedule": {
+            "name": "Définir le planning hebdomadaire",
+            "description": "Remplace le planning confort/éco hebdomadaire d'un circuit de chauffage ou de l'eau chaude sanitaire. Toute plage hors bloc confort passe en éco.",
+            "fields": {
+                "circuit": {
+                    "name": "Circuit",
+                    "description": "Numéro du circuit de chauffage. Laisser vide pour l'eau chaude sanitaire."
+                },
+                "days": {
+                    "name": "Jours",
+                    "description": "Jours auxquels ce planning s'applique."
+                },
+                "comfort_blocks": {
+                    "name": "Blocs confort",
+                    "description": "Liste de plages {from, to} en mode confort. Vide met toute la journée en éco."
+                }
+            }
+        }
     }
 }

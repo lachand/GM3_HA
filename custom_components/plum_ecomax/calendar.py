@@ -11,6 +11,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_ACTIVE_CIRCUITS, DOMAIN, WEEKDAY_TO_SLUGS
 from .device import circuit_device_info, hdw_device_info
+from .schedule import am_pm_to_slots
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,135 +77,77 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
 
     @property
     def event(self) -> CalendarEvent | None:
-        """Returns the next upcoming event.
-
-        Returns:
-            CalendarEvent: The next event, or None if not implemented.
-        """
+        """The comfort block currently running, or the next one within a week."""
+        now = dt_util.now()
+        for event in self._events_between(
+            now - datetime.timedelta(days=1), now + datetime.timedelta(days=8)
+        ):
+            if event.end > now:
+                return event
         return None
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime.datetime, end_date: datetime.datetime
     ) -> list[CalendarEvent]:
-        """Generates events based on the system type.
+        """Comfort blocks between start_date and end_date (eco is the gap)."""
+        return [
+            e
+            for e in self._events_between(start_date, end_date)
+            if e.end > start_date and e.start < end_date
+        ]
 
-        Args:
-            hass: Home Assistant instance.
-            start_date: Start of the requested date range.
-            end_date: End of the requested date range.
+    def _slug_pair(self, weekday: int) -> tuple[str, str]:
+        suffix_am, suffix_pm = WEEKDAY_TO_SLUGS[weekday]
+        prefix = f"circuit{self._index}" if self._system_type == "circuit" else "hdw"
+        return f"{prefix}{suffix_am}", f"{prefix}{suffix_pm}"
 
-        Returns:
-            List[CalendarEvent]: A list of calendar events found within the range.
-        """
-        events = []
-        current_day = start_date
-
-        while current_day <= end_date:
-            weekday = current_day.weekday()
-            slugs = WEEKDAY_TO_SLUGS.get(weekday)
-
-            if not slugs:
-                current_day += datetime.timedelta(days=1)
-                continue
-
-            suffix_am, suffix_pm = slugs
-
-            if self._system_type == "circuit":
-                slug_am = f"circuit{self._index}{suffix_am}"
-                slug_pm = f"circuit{self._index}{suffix_pm}"
-            else:
-                slug_am = f"hdw{suffix_am}"
-                slug_pm = f"hdw{suffix_pm}"
-
+    def _events_between(
+        self, start_date: datetime.datetime, end_date: datetime.datetime
+    ) -> list[CalendarEvent]:
+        events: list[CalendarEvent] = []
+        day = dt_util.as_local(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = dt_util.as_local(end_date)
+        while day <= end:
+            slug_am, slug_pm = self._slug_pair(day.weekday())
             val_am = self.coordinator.data.get(slug_am)
             val_pm = self.coordinator.data.get(slug_pm)
-
             if val_am is not None and val_pm is not None:
                 try:
-                    day_events = self._decode_day(current_day, int(val_am), int(val_pm))
-                    events.extend(day_events)
+                    events.extend(self._decode_day(day, int(val_am), int(val_pm)))
                 except (ValueError, TypeError):
                     pass
-
-            current_day += datetime.timedelta(days=1)
-
+            day += datetime.timedelta(days=1)
         return events
 
     def _decode_day(
         self, date_base: datetime.datetime, val_am: int, val_pm: int
     ) -> list[CalendarEvent]:
-        """Decodes 48-bit binary schedule data for a single day.
-
-        Args:
-            date_base: The base date (00:00).
-            val_am: Integer value of the AM register (00:00-12:00).
-            val_pm: Integer value of the PM register (12:00-00:00).
-
-        Returns:
-            List[CalendarEvent]: List of events derived from the bitmask.
+        """One CalendarEvent per contiguous run of comfort slots that day.
+        Eco time is simply the gaps -- no event.
         """
-        events = []
-        slots = []
-        for i in range(24):
-            slots.append((val_am >> i) & 1 == 1)
-        for i in range(24):
-            slots.append((val_pm >> i) & 1 == 1)
-
-        if not slots:
-            return []
-
-        current_start_slot = 0
-        current_state = slots[0]
-
-        for i in range(1, 48):
-            state = slots[i]
-            if state != current_state:
-                events.append(self._create_event(date_base, current_start_slot, i, current_state))
-                current_state = state
-                current_start_slot = i
-
-        events.append(self._create_event(date_base, current_start_slot, 48, current_state))
+        slots = am_pm_to_slots(val_am, val_pm)
+        events: list[CalendarEvent] = []
+        run_start: int | None = None
+        for i in range(len(slots) + 1):
+            comfort = i < len(slots) and slots[i]
+            if comfort and run_start is None:
+                run_start = i
+            elif not comfort and run_start is not None:
+                events.append(self._create_event(date_base, run_start, i))
+                run_start = None
         return events
 
-    def _create_event(self, date_base, start_slot, end_slot, is_active) -> CalendarEvent:
-        """Creates a Home Assistant CalendarEvent object.
-
-        Args:
-            date_base: The reference date.
-            start_slot: Start index (0-47, representing 30min slots).
-            end_slot: End index (0-48).
-            is_active: Boolean indicating if the slot is Active (Comfort) or Eco.
-
-        Returns:
-            CalendarEvent: The constructed event object.
-        """
-        start_h = start_slot // 2
-        start_m = (start_slot % 2) * 30
-        end_h = end_slot // 2
-        end_m = (end_slot % 2) * 30
-
-        dt_start = dt_util.as_local(
-            date_base.replace(hour=int(start_h), minute=int(start_m), second=0, microsecond=0)
+    def _create_event(self, date_base, start_slot, end_slot) -> CalendarEvent:
+        """A comfort CalendarEvent spanning [start_slot, end_slot) 30-min slots."""
+        midnight = dt_util.as_local(date_base.replace(hour=0, minute=0, second=0, microsecond=0))
+        dt_start = midnight + datetime.timedelta(minutes=30 * start_slot)
+        dt_end = midnight + datetime.timedelta(minutes=30 * end_slot)
+        return CalendarEvent(
+            summary="Comfort",
+            start=dt_start,
+            end=dt_end,
+            description="Heating/DHW comfort period",
         )
-
-        if end_h >= 24:
-            dt_end = dt_util.as_local(
-                date_base.replace(hour=0, minute=0, second=0, microsecond=0)
-                + datetime.timedelta(days=1)
-            )
-        else:
-            dt_end = dt_util.as_local(
-                date_base.replace(hour=int(end_h), minute=int(end_m), second=0, microsecond=0)
-            )
-
-        if is_active:
-            summary = "Active"
-            description = "Heating/DHW comfort (Day)"
-        else:
-            summary = "Eco"
-            description = "Heating/DHW eco (Night)"
-
-        return CalendarEvent(summary=summary, start=dt_start, end=dt_end, description=description)
 
     @property
     def device_info(self) -> DeviceInfo:

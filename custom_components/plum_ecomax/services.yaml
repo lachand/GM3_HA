@@ -1,0 +1,46 @@
+set_schedule:
+  name: Set weekly schedule
+  description: >
+    Overwrite the comfort/eco weekly schedule for a heating circuit or the
+    domestic hot water. Any time not covered by a comfort block becomes eco.
+  fields:
+    circuit:
+      name: Circuit
+      description: Heating circuit number. Leave empty to target domestic hot water.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 7
+          mode: box
+    days:
+      name: Days
+      description: Which days this schedule applies to.
+      required: true
+      selector:
+        select:
+          multiple: true
+          options:
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
+            - friday
+            - saturday
+            - sunday
+            - everyday
+            - weekday
+            - weekend
+    comfort_blocks:
+      name: Comfort blocks
+      description: >
+        List of {from, to} time ranges that should be in comfort mode. An
+        empty list sets the whole day to eco.
+      required: false
+      example: |
+        - from: "06:00:00"
+          to: "08:30:00"
+        - from: "17:00:00"
+          to: "22:00:00"
+      selector:
+        object:

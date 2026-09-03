@@ -424,5 +424,25 @@
             "title": "Boiler connection lost",
             "description": "{count} consecutive attempts to talk to the boiler have failed. Check that the boiler is powered on and reachable on the network at the configured IP/port -- entities will show stale or unavailable data until connectivity is restored."
         }
+    },
+    "services": {
+        "set_schedule": {
+            "name": "Set weekly schedule",
+            "description": "Overwrite the comfort/eco weekly schedule for a heating circuit or the domestic hot water. Any time not in a comfort block becomes eco.",
+            "fields": {
+                "circuit": {
+                    "name": "Circuit",
+                    "description": "Heating circuit number. Leave empty to target domestic hot water."
+                },
+                "days": {
+                    "name": "Days",
+                    "description": "Which days this schedule applies to."
+                },
+                "comfort_blocks": {
+                    "name": "Comfort blocks",
+                    "description": "List of {from, to} time ranges in comfort mode. Empty sets the whole day to eco."
+                }
+            }
+        }
     }
 }

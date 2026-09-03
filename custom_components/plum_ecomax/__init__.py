@@ -16,6 +16,7 @@ from homeassistant.helpers import config_validation as cv
 from .const import CONF_UPDATE_INTERVAL, DEFAULT_PORT, DOMAIN, UPDATE_INTERVAL
 from .coordinator import PlumDataUpdateCoordinator
 from .plum_device import PlumDevice
+from .schedule import async_register_services, async_unregister_services
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [
@@ -86,6 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await async_register_services(hass)
     return True
 
 
@@ -106,4 +108,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         # tear it down explicitly here so a reload/removal doesn't leak an
         # open socket until garbage collection gets around to it.
         await asyncio.to_thread(coordinator.device.close)
+        await async_unregister_services(hass)
     return unload_ok
