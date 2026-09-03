@@ -44,3 +44,23 @@ set_schedule:
           to: "22:00:00"
       selector:
         object:
+
+solar_to_buffer:
+  name: Solar dump to buffer
+  description: >
+    Put the boiler in manual mode and force the DHW pump for a set time, then
+    return to automatic. Moves heat from the solar-charged DHW tank into the
+    buffer tanks - e.g. run it before a forecast overcast spell. The boiler is
+    always returned to automatic (on the timer, on a second call, on restart).
+  fields:
+    duration:
+      name: Duration
+      description: How long to force the pump, in minutes (capped at 120).
+      required: true
+      example: 30
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: min
+          mode: box

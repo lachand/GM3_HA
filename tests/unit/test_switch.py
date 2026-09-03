@@ -141,6 +141,58 @@ class TestDeviceRouting:
         assert info["serial_number"] == "SN123"
 
 
+class TestOperatingModeSwitch:
+    """pid 161 exposed as a switch: on=2 (manual), off=1 (automatic),
+    Configuration category (IMPROVEMENT_PLAN.md section N)."""
+
+    def _switch(self, data, entry="entry123"):
+        from custom_components.plum_ecomax.const import OPERATING_MODE_AUTO, OPERATING_MODE_MANUAL
+
+        assert SWITCH_TYPES["operatingmode"] == (
+            "Manual mode",
+            OPERATING_MODE_MANUAL,
+            OPERATING_MODE_AUTO,
+        )
+        name, on_value, off_value = SWITCH_TYPES["operatingmode"]
+        return PlumEconetSwitch(
+            _make_coordinator({}, data), entry, "operatingmode", name, on_value, off_value
+        )
+
+    def test_is_on_when_manual(self):
+        assert self._switch({"operatingmode": 2}).is_on is True
+
+    def test_is_off_when_automatic(self):
+        assert self._switch({"operatingmode": 1}).is_on is False
+
+    def test_entity_category_is_config(self):
+        from homeassistant.const import EntityCategory
+
+        assert self._switch({}).entity_category == EntityCategory.CONFIG
+
+    def test_hdwpumpforce_has_no_entity_category(self):
+        name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
+        switch = PlumEconetSwitch(
+            _make_coordinator({}, {}), "e", "hdwpumpforce", name, on_value, off_value
+        )
+        assert switch.entity_category is None
+
+    @pytest.mark.asyncio
+    async def test_turn_on_writes_manual(self):
+        switch = self._switch({})
+        await switch.async_turn_on()
+        switch.coordinator.async_set_value.assert_awaited_once_with("operatingmode", 2)
+
+    @pytest.mark.asyncio
+    async def test_turn_off_writes_automatic(self):
+        switch = self._switch({})
+        await switch.async_turn_off()
+        switch.coordinator.async_set_value.assert_awaited_once_with("operatingmode", 1)
+
+    def test_routes_to_boiler_device(self):
+        info = self._switch({"uid": "SN"}).device_info
+        assert (DOMAIN, "entry123") in info["identifiers"]
+
+
 def test_unique_id_is_scoped_by_entry_id():
     coordinator = _make_coordinator({}, {})
     name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]

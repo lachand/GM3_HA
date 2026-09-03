@@ -55,3 +55,4 @@ nav:
       - Device (registry): reference/device.md
       - Repair issues: reference/issues.md
       - Diagnostics: reference/diagnostics.md
+      - Solar dump service: reference/solar_dump.md

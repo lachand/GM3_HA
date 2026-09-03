@@ -390,6 +390,9 @@
             },
             "hdwstartlegion": {
                 "name": "Cycle anti-légionellose"
+            },
+            "operatingmode": {
+                "name": "Mode manuel"
             }
         },
         "select": {
@@ -423,6 +426,10 @@
         "connection_lost": {
             "title": "Connexion à la chaudière perdue",
             "description": "{count} tentatives consécutives de communication avec la chaudière ont échoué. Vérifiez que la chaudière est sous tension et joignable sur le réseau à l'adresse IP/port configurés -- les entités afficheront des données obsolètes ou indisponibles jusqu'au rétablissement de la connexion."
+        },
+        "manual_mode_stuck": {
+            "title": "La chaudière est peut-être bloquée en mode manuel",
+            "description": "Le service solar_to_buffer n'a pas pu remettre la chaudière en mode automatique. Tant qu'elle est en manuel, sa régulation automatique est désactivée. Repasse le mode de fonctionnement en automatique sur le panneau ecoSTER (ou désactive le commutateur « Mode manuel »), puis vérifie la connexion réseau vers la chaudière."
         }
     },
     "services": {
@@ -441,6 +448,16 @@
                 "comfort_blocks": {
                     "name": "Blocs confort",
                     "description": "Liste de plages horaires (from/to) en mode confort. Une liste vide met toute la journée en éco."
+                }
+            }
+        },
+        "solar_to_buffer": {
+            "name": "Décharge solaire vers tampon",
+            "description": "Met la chaudière en mode manuel et force la pompe ECS pendant une durée donnée, puis revient en automatique. Déplace la chaleur du ballon ECS solaire vers les ballons tampons.",
+            "fields": {
+                "duration": {
+                    "name": "Durée",
+                    "description": "Durée du forçage de la pompe, en minutes (plafonnée à 120)."
                 }
             }
         }

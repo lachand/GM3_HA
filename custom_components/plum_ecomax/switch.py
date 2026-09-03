@@ -10,12 +10,13 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SWITCH_TYPES
+from .const import CONFIG_SWITCHES, DOMAIN, SWITCH_TYPES
 from .device import boiler_device_info, hdw_device_info
 
 HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce", "hdwstartlegion"}
@@ -81,6 +82,18 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
         self._off_value = off_value
         self._attr_translation_key = slug
         self._attr_unique_id = f"{DOMAIN}_{entry_id}_switch_{slug}"
+
+    @property
+    def entity_category(self) -> EntityCategory | None:
+        if self._slug in CONFIG_SWITCHES:
+            return EntityCategory.CONFIG
+        return None
+
+    @property
+    def icon(self) -> str | None:
+        if self._slug == "operatingmode":
+            return "mdi:hand-back-right" if self.is_on else "mdi:cog-play"
+        return None
 
     @property
     def device_info(self) -> DeviceInfo | None:

@@ -390,6 +390,9 @@
             },
             "hdwstartlegion": {
                 "name": "Anti-Legionella Cycle"
+            },
+            "operatingmode": {
+                "name": "Manual mode"
             }
         },
         "select": {
@@ -423,6 +426,10 @@
         "connection_lost": {
             "title": "Boiler connection lost",
             "description": "{count} consecutive attempts to talk to the boiler have failed. Check that the boiler is powered on and reachable on the network at the configured IP/port -- entities will show stale or unavailable data until connectivity is restored."
+        },
+        "manual_mode_stuck": {
+            "title": "Boiler may be stuck in manual mode",
+            "description": "The solar_to_buffer service could not return the boiler to automatic mode. While the boiler is in manual mode its automatic regulation is disabled. Set the operating mode back to automatic on the ecoSTER panel (or toggle the Manual mode switch off), then check the network connection to the boiler."
         }
     },
     "services": {
@@ -441,6 +448,16 @@
                 "comfort_blocks": {
                     "name": "Comfort blocks",
                     "description": "List of from/to time ranges that should be in comfort mode. An empty list sets the whole day to eco."
+                }
+            }
+        },
+        "solar_to_buffer": {
+            "name": "Solar dump to buffer",
+            "description": "Put the boiler in manual mode and force the DHW pump for a set time, then return to automatic. Moves heat from the solar-charged DHW tank into the buffer tanks.",
+            "fields": {
+                "duration": {
+                    "name": "Duration",
+                    "description": "How long to force the pump, in minutes (capped at 120)."
                 }
             }
         }

@@ -24,15 +24,38 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 
+# --- OPERATING MODE (pid 161) + solar-dump service ---
+# The ecoSTER "manual control" service screen writes pid 161 = 2 to put the
+# controller in manual mode and = 1 to return to automatic. Confirmed by
+# passive RS-485 bus capture over several clean enter/exit cycles
+# (IMPROVEMENT_PLAN.md section N): MANUAL_MODE_SLUG bit 64 follows it exactly,
+# and a write of pid 161 = 2 from this integration was validated live to
+# raise that bit and be cleanly reversible. Manual mode is the ONLY state in
+# which hdwpumpforce (and the other force overrides) physically take effect.
+OPERATING_MODE_SLUG = "operatingmode"
+OPERATING_MODE_AUTO = 1
+OPERATING_MODE_MANUAL = 2
+
+# plum_ecomax.solar_to_buffer: manual mode + forced DHW pump for a capped
+# duration, then guaranteed return to automatic. Used to bank solar-heated
+# DHW into the buffer tanks ahead of a forecast overcast spell.
+SOLAR_DUMP_FORCE_SLUG = "hdwpumpforce"
+SOLAR_DUMP_FORCE_VALUE = 512
+SOLAR_DUMP_MAX_MINUTES = 120
+
 # --- CONFIGURATION SWITCH (ON/OFF) ---
-# Format: "slug": "Friendly Name"
 SWITCH_TYPES = {
     # Format: "slug": (friendly_name, on_value, off_value)
     "hdwstartoneloading": ("Force DHW reload", 1, 0),
     # 0x200 = bit 9 levé = marche forcée pompe ECS vers ballon solaire (ID 172)
     "hdwpumpforce": ("Force pompe ECS → ballon solaire", 512, 0),
     "hdwstartlegion": ("Cycle anti-légionellose", 1, 0),
+    "operatingmode": ("Manual mode", OPERATING_MODE_MANUAL, OPERATING_MODE_AUTO),
 }
+
+# Switches that belong in the device's Configuration section rather than the
+# main Controls card (a heavier action / not day-to-day).
+CONFIG_SWITCHES = {"operatingmode"}
 
 # --- CONFIGURATION SELECT (DROPDOWN) ---
 

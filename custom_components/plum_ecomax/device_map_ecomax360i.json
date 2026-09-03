@@ -439,6 +439,13 @@
         "exponent": 0,
         "name_orig": "HDWHeatSource"
     },
+    "operatingmode": {
+        "id": 161,
+        "type": "LONG_INT",
+        "unit": "",
+        "exponent": 0,
+        "name_orig": "OperatingMode"
+    },
     "antifreezetemp": {
         "id": 153,
         "type": "SHORT_INT",
