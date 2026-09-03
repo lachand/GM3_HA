@@ -104,6 +104,7 @@
             "circuit6name": { "name": "Circuit 6 Name" },
             "circuit7name": { "name": "Circuit 7 Name" },
             "detectalarmsettings": { "name": "Alarm Detection Settings (raw)" },
+            "detectalarmstate": { "name": "Detected Alarm State (raw)" },
             "workstate2": { "name": "Work State 2 (raw)" },
             "workstate3": { "name": "Work State 3 (raw)" },
             "workstate4": { "name": "Work State 4 (raw)" }
@@ -114,8 +115,7 @@
             "alarmbits_2": { "name": "Alarm Bits 2" },
             "alarmbits_3": { "name": "Alarm Bits 3" },
             "alarmbits_4": { "name": "Alarm Bits 4" },
-            "alarmbits_5": { "name": "Alarm Bits 5" },
-            "detectalarmstate": { "name": "Detected Alarm State" }
+            "alarmbits_5": { "name": "Alarm Bits 5" }
         },
         "number": {
             "hdwtsetpoint": { "name": "DHW Setpoint" },

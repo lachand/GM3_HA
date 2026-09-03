@@ -160,7 +160,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         val = self.coordinator.data.get(self._target_slug)
         if val is None: return None
         try: return float(val)
-        except: return None
+        except (ValueError, TypeError): return None
 
     @property
     def min_temp(self) -> float:
@@ -173,11 +173,11 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             float: The limit value.
         """
         val = self.coordinator.data.get(self._min_slug)
-        try: 
+        try:
             f = float(val)
             if math.isnan(f): return 20.0
             return f
-        except: return 20.0
+        except (ValueError, TypeError): return 20.0
 
     @property
     def max_temp(self) -> float:
@@ -190,11 +190,11 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             float: The limit value.
         """
         val = self.coordinator.data.get(self._max_slug)
-        try: 
+        try:
             f = float(val)
             if math.isnan(f): return 60.0
             return f
-        except: return 60.0
+        except (ValueError, TypeError): return 60.0
 
     @property
     def current_operation(self) -> Optional[str]:

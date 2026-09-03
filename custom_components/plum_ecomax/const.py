@@ -129,23 +129,26 @@ MANUAL_MODE_SLUG = "heatsourcemainpumpstate"
 MANUAL_MODE_BIT = 64
 
 # Alarm bitmask registers (DP_INVENTORY.md "Alarmes & bits de diagnostic").
-# Only the registers whose name unambiguously means "alarm" are exposed as a
-# coarse "some bit is set" problem indicator -- individual bit meanings
-# aren't documented and haven't been empirically decoded the way
-# MANUAL_MODE_BIT was. detectalarmsettings/workstate2-4 are deliberately
-# NOT included here: their names read as configuration/extended-state
-# registers rather than live alarm flags, and detectalarmsettings is
-# observed nonzero (65280) with zero alarms visible on the physical panel --
-# treating it as "problem" would very likely be a permanent false positive.
-# Those four are exposed as plain diagnostic sensors instead (see
-# DIAGNOSTIC_SENSOR_SLUGS below).
+# Only the registers whose name unambiguously means "alarm" AND that read
+# zero on a healthy boiler are exposed as a coarse "some bit is set" problem
+# indicator -- individual bit meanings aren't documented and haven't been
+# empirically decoded the way MANUAL_MODE_BIT was. alarmbits_1..5 are all 0
+# on the live boiler (dp_scan capture) with no panel alarms.
+#
+# detectalarmstate / detectalarmsettings / workstate2-4 are deliberately NOT
+# here: their names read as configuration/extended-state registers rather
+# than live alarm flags, and both detect* registers are observed with a
+# byte-filled value and zero alarms on the physical panel
+# (detectalarmsettings=65280 / 0xFF00, detectalarmstate=16711680 / 0xFF0000)
+# -- treating either as "problem" is a permanent false positive (a red
+# entity plus an unfixable repair issue). They are exposed as plain
+# diagnostic integer sensors instead (see DIAGNOSTIC_SENSOR_SLUGS below).
 ALARM_BITMASK_SLUGS = [
     "alarmbits_1",
     "alarmbits_2",
     "alarmbits_3",
     "alarmbits_4",
     "alarmbits_5",
-    "detectalarmstate",
 ]
 
 # --- SENSOR CONFIGURATION ---
@@ -204,10 +207,11 @@ SENSOR_TYPES = {
 
     # Raw diagnostic registers (DP_INVENTORY.md "Alarmes & bits de
     # diagnostic"). Exposed as plain integers rather than decoded/booleans:
-    # see ALARM_BITMASK_SLUGS above for why these four specifically aren't
-    # treated as "problem" binary sensors. Gated into EntityCategory.
-    # DIAGNOSTIC via DIAGNOSTIC_SENSOR_SLUGS below.
+    # see ALARM_BITMASK_SLUGS above for why these aren't treated as "problem"
+    # binary sensors. Gated into EntityCategory.DIAGNOSTIC via
+    # DIAGNOSTIC_SENSOR_SLUGS below.
     "detectalarmsettings": [None, "mdi:bell-cog-outline", None],
+    "detectalarmstate": [None, "mdi:bell-cog-outline", None],
     "workstate2": [None, "mdi:chip", None],
     "workstate3": [None, "mdi:chip", None],
     "workstate4": [None, "mdi:chip", None],
@@ -218,20 +222,30 @@ SENSOR_TYPES = {
 # (see comment on the sensors above).
 DIAGNOSTIC_SENSOR_SLUGS = {
     "detectalarmsettings",
+    "detectalarmstate",
     "workstate2",
     "workstate3",
     "workstate4",
 }
 
 # --- THERMOSTATS ---
+# One list per circuit of *every slug climate.py can read at runtime* -- the
+# coordinator's initial scan (`_detect_available_parameters`) only ever polls
+# slugs it finds here, so anything climate.py reads that's missing from this
+# list is never refreshed after startup. That was the case for
+# `circuitNactive` (the HVAC on/off state): climate.py read it but the list
+# only had `circuitNworkstate`/`circuitNecotemp` (which no entity reads), so
+# the thermostat always reported "heat" and an OFF written from HA snapped
+# back at the next poll. Keep this in sync with the slugs climate.py's
+# properties actually touch.
 CLIMATE_TYPES = {
-    "1": ["tempcircuit1", "circuit1comforttemp","circuit1ecotemp", "circuit1workstate"],
-    "2": ["tempcircuit2", "circuit2comforttemp","circuit2ecotemp", "circuit2workstate"],
-    "3": ["tempcircuit3", "circuit3comforttemp","circuit3ecotemp", "circuit3workstate"],
-    "4": ["tempcircuit4", "circuit4comforttemp","circuit4ecotemp", "circuit4workstate"],
-    "5": ["tempcircuit5", "circuit5comforttemp","circuit5ecotemp", "circuit5workstate"],
-    "6": ["tempcircuit6", "circuit6comforttemp","circuit6ecotemp", "circuit6workstate"],
-    "7": ["tempcircuit7", "circuit7comforttemp","circuit7ecotemp", "circuit7workstate"],
+    str(i): [
+        f"circuit{i}thermostattemp",  # current temp (primary)
+        f"tempcircuit{i}",            # current temp (fallback, see climate.py)
+        f"circuit{i}comforttemp",     # target temp
+        f"circuit{i}active",          # HVAC on/off state
+    ]
+    for i in range(1, 8)
 }
 
 NUMBER_TYPES = {
@@ -292,17 +306,6 @@ HA_TO_PLUM_WATER_HEATER = {
     "off": 0,
     "performance": 1,
     "eco": 2
-}
-
-# Mapping for calendar
-WEEKDAY_TO_SLUGS = {
-    0: ("mondayam", "mondaypm"),
-    1: ("tuesdayam", "tuesdaypm"),
-    2: ("wednesdayam", "wednesdaypm"),
-    3: ("thursdayam", "thursdaypm"),
-    4: ("fridayam", "fridaypm"),
-    5: ("saturdayam", "saturdaypm"),
-    6: ("sundayam", "sundaypm"),
 }
 
 SCHEDULE_TYPES = {}

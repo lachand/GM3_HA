@@ -5,6 +5,7 @@ control over target temperatures and HVAC modes (Heat/Off). It supports
 automatic fallback for temperature sensors if the thermostat sensor is missing.
 """
 import logging
+import math
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
@@ -125,19 +126,30 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
         Returns:
             float | None: The current temperature or None if unavailable.
         """
-        val = self.coordinator.data.get(self._current_slug)
-        return float(val) if val is not None else None
+        return self._as_temp(self.coordinator.data.get(self._current_slug))
 
     @property
     def target_temperature(self):
         """Returns the temperature we try to reach.
 
         Returns:
-            float: The target temperature.
+            float: The target temperature, or 20.0 if unknown.
         """
-        val = self.coordinator.data.get(self._target_slug)
-        if val is None: return 20.0 
-        return float(val)
+        val = self._as_temp(self.coordinator.data.get(self._target_slug))
+        return val if val is not None else 20.0
+
+    @staticmethod
+    def _as_temp(val):
+        """float(val) with None/NaN/non-numeric guarded (the coordinator
+        validates most of this already, but climate reads slugs -- e.g. the
+        tempcircuitN fallback -- that don't all go through range checks)."""
+        if val is None:
+            return None
+        try:
+            f_val = float(val)
+        except (ValueError, TypeError):
+            return None
+        return None if math.isnan(f_val) or math.isinf(f_val) else f_val
 
     @property
     def hvac_mode(self):

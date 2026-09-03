@@ -104,6 +104,7 @@
             "circuit6name": { "name": "Nom Circuit 6" },
             "circuit7name": { "name": "Nom Circuit 7" },
             "detectalarmsettings": { "name": "Réglages détection alarme (brut)" },
+            "detectalarmstate": { "name": "État alarme détectée (brut)" },
             "workstate2": { "name": "État de fonctionnement 2 (brut)" },
             "workstate3": { "name": "État de fonctionnement 3 (brut)" },
             "workstate4": { "name": "État de fonctionnement 4 (brut)" }
@@ -114,8 +115,7 @@
             "alarmbits_2": { "name": "Bits Alarme 2" },
             "alarmbits_3": { "name": "Bits Alarme 3" },
             "alarmbits_4": { "name": "Bits Alarme 4" },
-            "alarmbits_5": { "name": "Bits Alarme 5" },
-            "detectalarmstate": { "name": "État alarme détectée" }
+            "alarmbits_5": { "name": "Bits Alarme 5" }
         },
         "number": {
             "hdwtsetpoint": { "name": "Consigne ECS" },

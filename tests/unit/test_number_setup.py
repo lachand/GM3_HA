@@ -8,12 +8,12 @@ up in the user's installation (they only use circuit 2).
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from custom_components.plum_ecomax.const import CONF_ACTIVE_CIRCUITS, DOMAIN
-from custom_components.plum_ecomax.number import async_setup_entry
+from custom_components.plum_ecomax.number import PlumEcomaxNumber, async_setup_entry
 
 
 def _make_hass_and_entry(params_map: dict, active_circuits: list[str]):
@@ -61,3 +61,23 @@ async def test_no_active_circuits_creates_no_circuit_entities():
 
     slugs = {e._slug for e in added}
     assert slugs == {"buforlongloadtime"}
+
+
+@pytest.mark.asyncio
+async def test_async_set_native_value_does_not_truncate_floats():
+    """Regression: async_set_native_value used to int()-cast the value,
+    silently rounding FLOAT parameters (heating curves, step 0.1) so setting
+    a curve to 1.4 wrote 1.0 to the boiler. The value must reach the
+    coordinator unchanged -- PlumDevice._encode casts per wire type.
+    """
+    coordinator = MagicMock()
+    coordinator.async_set_value = AsyncMock(return_value=True)
+    entry = MagicMock()
+    entry.entry_id = "e1"
+
+    number = PlumEcomaxNumber(
+        coordinator, entry, "circuit2curvefloor", (0.1, 4.0, 0.1, "mdi:chart-bell-curve")
+    )
+    await number.async_set_native_value(1.4)
+
+    coordinator.async_set_value.assert_awaited_once_with("circuit2curvefloor", 1.4)

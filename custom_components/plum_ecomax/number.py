@@ -173,7 +173,14 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Sets a new value for the entity.
 
+        The value is passed through unchanged: PlumDevice._encode already
+        casts per the parameter's wire type (int() for SHORT_INT/WORD/...,
+        struct.pack("<f") for FLOAT). Casting to int() here silently
+        truncated FLOAT parameters -- notably the per-circuit heating
+        curves (circuitNcurvefloor/curveradiator, step 0.1), so setting a
+        curve to 1.4 wrote 1.0 to the boiler.
+
         Args:
             value: The new value to set.
         """
-        await self.coordinator.async_set_value(self._slug, int(value))
+        await self.coordinator.async_set_value(self._slug, value)

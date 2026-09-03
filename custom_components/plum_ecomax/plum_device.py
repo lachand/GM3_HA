@@ -133,7 +133,7 @@ class PlumDevice:
             elif ptype == "LONG_INT": return struct.pack("<i", int(value))
             elif ptype == "RAW": return str(value).encode("utf-8") + b"\x00"
             return None
-        except: return None
+        except Exception: return None
 
     def _decode(self, data: bytes, param_def: dict) -> Any:
         """Decodes raw bytes into a Python value.
@@ -171,7 +171,7 @@ class PlumDevice:
                 val = val * (10 ** exp)
                 val = round(val, 2)
             return val
-        except: return None
+        except Exception: return None
 
     # --- API ---
     async def get_value(self, slug: str, retries: int = 3) -> Any:
@@ -317,7 +317,7 @@ class PlumDevice:
 
         func, resp = result
         if func != CMD_READ_RESP or len(resp) < 7:
-            logger.debug(f"Unexpected read response for pid={pid}: func=0x{func:02X} len={len(resp)}")
+            logger.debug("Unexpected read response for pid=%s: func=0x%02X len=%d", pid, func, len(resp))
             # Wrong func or a too-short payload isn't a valid answer to
             # this specific request -- on a persistent connection that
             # means the stream is desynced (e.g. a stale/duplicate frame
@@ -329,7 +329,7 @@ class PlumDevice:
         # Data layout (spec 1.5.3.12): session(2) nblocks(1) nparams(1) pid(2) status(1) value(n)
         resp_pid = struct.unpack("<H", resp[4:6])[0]
         if resp_pid != pid:
-            logger.debug(f"PID mismatch for read: requested {pid}, device answered {resp_pid}")
+            logger.debug("PID mismatch for read: requested %s, device answered %s", pid, resp_pid)
             self._close_connection()
             return None
 
@@ -402,13 +402,13 @@ class PlumDevice:
 
         func, resp = result
         if func != CMD_READ_RESP or len(resp) < 3:
-            logger.debug(f"Unexpected batch read response: func=0x{func:02X}")
+            logger.debug("Unexpected batch read response: func=0x%02X", func)
             self._close_connection()
             return {}
 
         resp_session = struct.unpack("<H", resp[0:2])[0]
         if resp_session != self.session_id:
-            logger.debug(f"Batch session mismatch: sent {self.session_id}, got {resp_session}")
+            logger.debug("Batch session mismatch: sent %s, got %s", self.session_id, resp_session)
             # Unlike the block-shape check below, a session mismatch means
             # this frame isn't even an answer to our own request -- treat
             # it as a desynced stream, same as the func mismatch above.
@@ -429,7 +429,7 @@ class PlumDevice:
             if n_params != 1 or param_def is None:
                 # We only ever request one param per block; anything else
                 # means we can't reliably know this block's value width.
-                logger.debug(f"Unexpected block shape (n_params={n_params}, pid={first_pid}) in batch read")
+                logger.debug("Unexpected block shape (n_params=%s, pid=%s) in batch read", n_params, first_pid)
                 break
 
             value_len = VALUE_BYTE_LEN.get(param_def["type"], 4)
