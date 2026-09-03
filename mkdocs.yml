@@ -39,13 +39,19 @@ plugins:
 nav:
   - Accueil: index.md
   - Référence API:
+      - Intégration (setup): reference/init.md
+      - Config flow: reference/config_flow.md
       - Coordinateur: reference/coordinator.md
+      - Driver bas niveau: reference/plum_device.md
       - Climate: reference/climate.md
       - Sensor: reference/sensor.md
+      - Binary sensor: reference/binary_sensor.md
       - Water Heater: reference/water_heater.md
       - Calendar: reference/calendar.md
       - Switch: reference/switch.md
       - Number: reference/number.md
       - Select: reference/select.md
+      - Button: reference/button.md
       - Device (registry): reference/device.md
+      - Repair issues: reference/issues.md
       - Diagnostics: reference/diagnostics.md
