@@ -58,99 +58,271 @@
     },
     "entity": {
         "climate": {
-            "thermostat": { "name": "Thermostat" }
+            "thermostat": {
+                "name": "Thermostat"
+            }
         },
         "calendar": {
-            "schedule": { "name": "Planning" }
+            "schedule": {
+                "name": "Planning"
+            }
         },
         "water_heater": {
-            "hdw": { "name": "Eau Chaude Sanitaire" }
+            "hdw": {
+                "name": "Eau Chaude Sanitaire"
+            }
         },
         "sensor": {
-            "tempwthr": { "name": "Température Extérieure" },
-            "boilerpower": { "name": "Puissance Chaudière" },
-            "tempcwu": { "name": "Température ECS" },
-            "hdwpumpstate": { "name": "Pompe ECS" },
-            "tempbuforup": { "name": "Ballon Tampon (Haut)" },
-            "tempbufordown": { "name": "Ballon Tampon (Bas)" },
-            "tempclutch": { "name": "Température Embrayage" },
-            "buforsetpoint": { "name": "Consigne Ballon Tampon" },
-            "tempcircuit1": { "name": "Température Départ" },
-            "tempcircuit2": { "name": "Température Départ" },
-            "tempcircuit3": { "name": "Température Départ" },
-            "tempcircuit4": { "name": "Température Départ" },
-            "tempcircuit5": { "name": "Température Départ" },
-            "tempcircuit6": { "name": "Température Départ" },
-            "tempcircuit7": { "name": "Température Départ" },
-            "circuit1thermostattemp": { "name": "Température Ambiante" },
-            "circuit2thermostattemp": { "name": "Température Ambiante" },
-            "circuit3thermostattemp": { "name": "Température Ambiante" },
-            "circuit4thermostattemp": { "name": "Température Ambiante" },
-            "circuit5thermostattemp": { "name": "Température Ambiante" },
-            "circuit6thermostattemp": { "name": "Température Ambiante" },
-            "circuit7thermostattemp": { "name": "Température Ambiante" },
-            "mixer1valveposition": { "name": "Ouverture Vanne" },
-            "mixer2valveposition": { "name": "Ouverture Vanne" },
-            "mixer3valveposition": { "name": "Ouverture Vanne" },
-            "mixer4valveposition": { "name": "Ouverture Vanne" },
-            "mixer5valveposition": { "name": "Ouverture Vanne" },
-            "mixer6valveposition": { "name": "Ouverture Vanne" },
-            "mixer7valveposition": { "name": "Ouverture Vanne" },
-            "circuit1name": { "name": "Nom Circuit 1" },
-            "circuit2name": { "name": "Nom Circuit 2" },
-            "circuit3name": { "name": "Nom Circuit 3" },
-            "circuit4name": { "name": "Nom Circuit 4" },
-            "circuit5name": { "name": "Nom Circuit 5" },
-            "circuit6name": { "name": "Nom Circuit 6" },
-            "circuit7name": { "name": "Nom Circuit 7" },
-            "detectalarmsettings": { "name": "Réglages détection alarme (brut)" },
-            "detectalarmstate": { "name": "État alarme détectée (brut)" },
-            "workstate2": { "name": "État de fonctionnement 2 (brut)" },
-            "workstate3": { "name": "État de fonctionnement 3 (brut)" },
-            "workstate4": { "name": "État de fonctionnement 4 (brut)" }
+            "tempwthr": {
+                "name": "Température Extérieure"
+            },
+            "boilerpower": {
+                "name": "Puissance Chaudière"
+            },
+            "tempcwu": {
+                "name": "Température ECS"
+            },
+            "hdwpumpstate": {
+                "name": "Pompe ECS"
+            },
+            "tempbuforup": {
+                "name": "Ballon Tampon (Haut)"
+            },
+            "tempbufordown": {
+                "name": "Ballon Tampon (Bas)"
+            },
+            "tempclutch": {
+                "name": "Température Embrayage"
+            },
+            "buforsetpoint": {
+                "name": "Consigne Ballon Tampon"
+            },
+            "tempcircuit1": {
+                "name": "Température Départ"
+            },
+            "tempcircuit2": {
+                "name": "Température Départ"
+            },
+            "tempcircuit3": {
+                "name": "Température Départ"
+            },
+            "tempcircuit4": {
+                "name": "Température Départ"
+            },
+            "tempcircuit5": {
+                "name": "Température Départ"
+            },
+            "tempcircuit6": {
+                "name": "Température Départ"
+            },
+            "tempcircuit7": {
+                "name": "Température Départ"
+            },
+            "circuit1thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "circuit2thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "circuit3thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "circuit4thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "circuit5thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "circuit6thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "circuit7thermostattemp": {
+                "name": "Température Ambiante"
+            },
+            "mixer1valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "mixer2valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "mixer3valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "mixer4valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "mixer5valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "mixer6valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "mixer7valveposition": {
+                "name": "Ouverture Vanne"
+            },
+            "circuit1name": {
+                "name": "Nom Circuit 1"
+            },
+            "circuit2name": {
+                "name": "Nom Circuit 2"
+            },
+            "circuit3name": {
+                "name": "Nom Circuit 3"
+            },
+            "circuit4name": {
+                "name": "Nom Circuit 4"
+            },
+            "circuit5name": {
+                "name": "Nom Circuit 5"
+            },
+            "circuit6name": {
+                "name": "Nom Circuit 6"
+            },
+            "circuit7name": {
+                "name": "Nom Circuit 7"
+            },
+            "detectalarmsettings": {
+                "name": "Réglages détection alarme (brut)"
+            },
+            "detectalarmstate": {
+                "name": "État alarme détectée (brut)"
+            },
+            "workstate2": {
+                "name": "État de fonctionnement 2 (brut)"
+            },
+            "workstate3": {
+                "name": "État de fonctionnement 3 (brut)"
+            },
+            "workstate4": {
+                "name": "État de fonctionnement 4 (brut)"
+            },
+            "last_communication": {
+                "name": "Dernière communication"
+            },
+            "consecutive_failures": {
+                "name": "Échecs de communication consécutifs"
+            }
         },
         "binary_sensor": {
-            "manual_mode_active": { "name": "Mode manuel actif" },
-            "alarmbits_1": { "name": "Bits Alarme 1" },
-            "alarmbits_2": { "name": "Bits Alarme 2" },
-            "alarmbits_3": { "name": "Bits Alarme 3" },
-            "alarmbits_4": { "name": "Bits Alarme 4" },
-            "alarmbits_5": { "name": "Bits Alarme 5" }
+            "manual_mode_active": {
+                "name": "Mode manuel actif"
+            },
+            "alarmbits_1": {
+                "name": "Bits Alarme 1"
+            },
+            "alarmbits_2": {
+                "name": "Bits Alarme 2"
+            },
+            "alarmbits_3": {
+                "name": "Bits Alarme 3"
+            },
+            "alarmbits_4": {
+                "name": "Bits Alarme 4"
+            },
+            "alarmbits_5": {
+                "name": "Bits Alarme 5"
+            }
         },
         "number": {
-            "hdwtsetpoint": { "name": "Consigne ECS" },
-            "hdwminsettemp": { "name": "ECS Min" },
-            "hdwmaxsettemp": { "name": "ECS Max" },
-            "buforlongloadtime": { "name": "Forcer chargement ballon tampon (minutes)" },
-            "hdwlegionsetpoint": { "name": "Température cible anti-légionellose" },
-            "hdwlegionday": { "name": "Jour cycle anti-légionellose" },
-            "hdwlegionhour": { "name": "Heure cycle anti-légionellose" },
-            "circuit1curvefloor": { "name": "Courbe de chauffe Circuit 1 (plancher)" },
-            "circuit1curveradiator": { "name": "Courbe de chauffe Circuit 1 (radiateur)" },
-            "circuit1basetemp": { "name": "Température de base Circuit 1" },
-            "circuit1tempreduction": { "name": "Réduction nocturne Circuit 1" },
-            "circuit2curvefloor": { "name": "Courbe de chauffe Circuit 2 (plancher)" },
-            "circuit2curveradiator": { "name": "Courbe de chauffe Circuit 2 (radiateur)" },
-            "circuit2basetemp": { "name": "Température de base Circuit 2" },
-            "circuit2tempreduction": { "name": "Réduction nocturne Circuit 2" },
-            "circuit3curvefloor": { "name": "Courbe de chauffe Circuit 3 (plancher)" },
-            "circuit3curveradiator": { "name": "Courbe de chauffe Circuit 3 (radiateur)" },
-            "circuit3basetemp": { "name": "Température de base Circuit 3" },
-            "circuit3tempreduction": { "name": "Réduction nocturne Circuit 3" },
-            "circuit4curvefloor": { "name": "Courbe de chauffe Circuit 4 (plancher)" },
-            "circuit4curveradiator": { "name": "Courbe de chauffe Circuit 4 (radiateur)" },
-            "circuit4basetemp": { "name": "Température de base Circuit 4" },
-            "circuit4tempreduction": { "name": "Réduction nocturne Circuit 4" },
-            "circuit5curvefloor": { "name": "Courbe de chauffe Circuit 5 (plancher)" },
-            "circuit5curveradiator": { "name": "Courbe de chauffe Circuit 5 (radiateur)" },
-            "circuit5basetemp": { "name": "Température de base Circuit 5" },
-            "circuit5tempreduction": { "name": "Réduction nocturne Circuit 5" },
-            "circuit6basetemp": { "name": "Température de base Circuit 6" },
-            "circuit6tempreduction": { "name": "Réduction nocturne Circuit 6" },
-            "circuit7curvefloor": { "name": "Courbe de chauffe Circuit 7 (plancher)" },
-            "circuit7curveradiator": { "name": "Courbe de chauffe Circuit 7 (radiateur)" },
-            "circuit7basetemp": { "name": "Température de base Circuit 7" },
-            "circuit7tempreduction": { "name": "Réduction nocturne Circuit 7" }
+            "hdwtsetpoint": {
+                "name": "Consigne ECS"
+            },
+            "hdwminsettemp": {
+                "name": "ECS Min"
+            },
+            "hdwmaxsettemp": {
+                "name": "ECS Max"
+            },
+            "buforlongloadtime": {
+                "name": "Forcer chargement ballon tampon (minutes)"
+            },
+            "hdwlegionsetpoint": {
+                "name": "Température cible anti-légionellose"
+            },
+            "hdwlegionday": {
+                "name": "Jour cycle anti-légionellose"
+            },
+            "hdwlegionhour": {
+                "name": "Heure cycle anti-légionellose"
+            },
+            "circuit1curvefloor": {
+                "name": "Courbe de chauffe Circuit 1 (plancher)"
+            },
+            "circuit1curveradiator": {
+                "name": "Courbe de chauffe Circuit 1 (radiateur)"
+            },
+            "circuit1basetemp": {
+                "name": "Température de base Circuit 1"
+            },
+            "circuit1tempreduction": {
+                "name": "Réduction nocturne Circuit 1"
+            },
+            "circuit2curvefloor": {
+                "name": "Courbe de chauffe Circuit 2 (plancher)"
+            },
+            "circuit2curveradiator": {
+                "name": "Courbe de chauffe Circuit 2 (radiateur)"
+            },
+            "circuit2basetemp": {
+                "name": "Température de base Circuit 2"
+            },
+            "circuit2tempreduction": {
+                "name": "Réduction nocturne Circuit 2"
+            },
+            "circuit3curvefloor": {
+                "name": "Courbe de chauffe Circuit 3 (plancher)"
+            },
+            "circuit3curveradiator": {
+                "name": "Courbe de chauffe Circuit 3 (radiateur)"
+            },
+            "circuit3basetemp": {
+                "name": "Température de base Circuit 3"
+            },
+            "circuit3tempreduction": {
+                "name": "Réduction nocturne Circuit 3"
+            },
+            "circuit4curvefloor": {
+                "name": "Courbe de chauffe Circuit 4 (plancher)"
+            },
+            "circuit4curveradiator": {
+                "name": "Courbe de chauffe Circuit 4 (radiateur)"
+            },
+            "circuit4basetemp": {
+                "name": "Température de base Circuit 4"
+            },
+            "circuit4tempreduction": {
+                "name": "Réduction nocturne Circuit 4"
+            },
+            "circuit5curvefloor": {
+                "name": "Courbe de chauffe Circuit 5 (plancher)"
+            },
+            "circuit5curveradiator": {
+                "name": "Courbe de chauffe Circuit 5 (radiateur)"
+            },
+            "circuit5basetemp": {
+                "name": "Température de base Circuit 5"
+            },
+            "circuit5tempreduction": {
+                "name": "Réduction nocturne Circuit 5"
+            },
+            "circuit6basetemp": {
+                "name": "Température de base Circuit 6"
+            },
+            "circuit6tempreduction": {
+                "name": "Réduction nocturne Circuit 6"
+            },
+            "circuit7curvefloor": {
+                "name": "Courbe de chauffe Circuit 7 (plancher)"
+            },
+            "circuit7curveradiator": {
+                "name": "Courbe de chauffe Circuit 7 (radiateur)"
+            },
+            "circuit7basetemp": {
+                "name": "Température de base Circuit 7"
+            },
+            "circuit7tempreduction": {
+                "name": "Réduction nocturne Circuit 7"
+            }
         },
         "switch": {
             "hdwstartoneloading": {

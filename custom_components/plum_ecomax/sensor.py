@@ -11,8 +11,13 @@ values that might be returned by the boiler during initialization or errors.
 import logging
 import math  # <--- CRITICAL: Import required for NaN checks
 import re
+from datetime import UTC, datetime
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -69,6 +74,11 @@ async def async_setup_entry(
                 continue
 
         entities.append(PlumEcomaxSensor(coordinator, entry, slug, config, target_circuit_id))
+
+    # Link-health diagnostics (not device-map parameters -- read straight
+    # off the driver). See IMPROVEMENT_PLAN.md section C.
+    entities.append(PlumLastCommunicationSensor(coordinator, entry.entry_id))
+    entities.append(PlumConsecutiveFailuresSensor(coordinator, entry.entry_id))
 
     if entities:
         async_add_entities(entities)
@@ -203,3 +213,53 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
         if self._circuit_id:
             return circuit_device_info(self._entry_id, self._circuit_id)
         return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
+
+
+class _PlumLinkHealthSensor(CoordinatorEntity, SensorEntity):
+    """Base for the two link-health diagnostic sensors, both read directly
+    off PlumDevice rather than from a device-map parameter.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._entry_id = entry_id
+
+    @property
+    def device_info(self) -> dict:
+        return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
+
+
+class PlumLastCommunicationSensor(_PlumLinkHealthSensor):
+    """When the boiler last answered a request."""
+
+    _attr_translation_key = "last_communication"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:lan-connect"
+
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_last_communication"
+
+    @property
+    def native_value(self) -> datetime | None:
+        ts = self.coordinator.device.last_success_ts
+        return datetime.fromtimestamp(ts, tz=UTC) if ts else None
+
+
+class PlumConsecutiveFailuresSensor(_PlumLinkHealthSensor):
+    """How many transactions in a row have failed (0 = healthy)."""
+
+    _attr_translation_key = "consecutive_failures"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:lan-disconnect"
+
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_consecutive_failures"
+
+    @property
+    def native_value(self) -> int:
+        return self.coordinator.device.consecutive_failures

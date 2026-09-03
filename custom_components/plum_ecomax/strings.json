@@ -58,99 +58,271 @@
     },
     "entity": {
         "climate": {
-            "thermostat": { "name": "Thermostat" }
+            "thermostat": {
+                "name": "Thermostat"
+            }
         },
         "calendar": {
-            "schedule": { "name": "Schedule" }
+            "schedule": {
+                "name": "Schedule"
+            }
         },
         "water_heater": {
-            "hdw": { "name": "Domestic Hot Water" }
+            "hdw": {
+                "name": "Domestic Hot Water"
+            }
         },
         "sensor": {
-            "tempwthr": { "name": "Outside Temperature" },
-            "boilerpower": { "name": "Boiler Power" },
-            "tempcwu": { "name": "DHW Temperature" },
-            "hdwpumpstate": { "name": "DHW Pump" },
-            "tempbuforup": { "name": "Buffer Tank (Top)" },
-            "tempbufordown": { "name": "Buffer Tank (Bottom)" },
-            "tempclutch": { "name": "Clutch Temperature" },
-            "buforsetpoint": { "name": "Buffer Tank Setpoint" },
-            "tempcircuit1": { "name": "Flow Temperature" },
-            "tempcircuit2": { "name": "Flow Temperature" },
-            "tempcircuit3": { "name": "Flow Temperature" },
-            "tempcircuit4": { "name": "Flow Temperature" },
-            "tempcircuit5": { "name": "Flow Temperature" },
-            "tempcircuit6": { "name": "Flow Temperature" },
-            "tempcircuit7": { "name": "Flow Temperature" },
-            "circuit1thermostattemp": { "name": "Room Temperature" },
-            "circuit2thermostattemp": { "name": "Room Temperature" },
-            "circuit3thermostattemp": { "name": "Room Temperature" },
-            "circuit4thermostattemp": { "name": "Room Temperature" },
-            "circuit5thermostattemp": { "name": "Room Temperature" },
-            "circuit6thermostattemp": { "name": "Room Temperature" },
-            "circuit7thermostattemp": { "name": "Room Temperature" },
-            "mixer1valveposition": { "name": "Valve Opening" },
-            "mixer2valveposition": { "name": "Valve Opening" },
-            "mixer3valveposition": { "name": "Valve Opening" },
-            "mixer4valveposition": { "name": "Valve Opening" },
-            "mixer5valveposition": { "name": "Valve Opening" },
-            "mixer6valveposition": { "name": "Valve Opening" },
-            "mixer7valveposition": { "name": "Valve Opening" },
-            "circuit1name": { "name": "Circuit 1 Name" },
-            "circuit2name": { "name": "Circuit 2 Name" },
-            "circuit3name": { "name": "Circuit 3 Name" },
-            "circuit4name": { "name": "Circuit 4 Name" },
-            "circuit5name": { "name": "Circuit 5 Name" },
-            "circuit6name": { "name": "Circuit 6 Name" },
-            "circuit7name": { "name": "Circuit 7 Name" },
-            "detectalarmsettings": { "name": "Alarm Detection Settings (raw)" },
-            "detectalarmstate": { "name": "Detected Alarm State (raw)" },
-            "workstate2": { "name": "Work State 2 (raw)" },
-            "workstate3": { "name": "Work State 3 (raw)" },
-            "workstate4": { "name": "Work State 4 (raw)" }
+            "tempwthr": {
+                "name": "Outside Temperature"
+            },
+            "boilerpower": {
+                "name": "Boiler Power"
+            },
+            "tempcwu": {
+                "name": "DHW Temperature"
+            },
+            "hdwpumpstate": {
+                "name": "DHW Pump"
+            },
+            "tempbuforup": {
+                "name": "Buffer Tank (Top)"
+            },
+            "tempbufordown": {
+                "name": "Buffer Tank (Bottom)"
+            },
+            "tempclutch": {
+                "name": "Clutch Temperature"
+            },
+            "buforsetpoint": {
+                "name": "Buffer Tank Setpoint"
+            },
+            "tempcircuit1": {
+                "name": "Flow Temperature"
+            },
+            "tempcircuit2": {
+                "name": "Flow Temperature"
+            },
+            "tempcircuit3": {
+                "name": "Flow Temperature"
+            },
+            "tempcircuit4": {
+                "name": "Flow Temperature"
+            },
+            "tempcircuit5": {
+                "name": "Flow Temperature"
+            },
+            "tempcircuit6": {
+                "name": "Flow Temperature"
+            },
+            "tempcircuit7": {
+                "name": "Flow Temperature"
+            },
+            "circuit1thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "circuit2thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "circuit3thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "circuit4thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "circuit5thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "circuit6thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "circuit7thermostattemp": {
+                "name": "Room Temperature"
+            },
+            "mixer1valveposition": {
+                "name": "Valve Opening"
+            },
+            "mixer2valveposition": {
+                "name": "Valve Opening"
+            },
+            "mixer3valveposition": {
+                "name": "Valve Opening"
+            },
+            "mixer4valveposition": {
+                "name": "Valve Opening"
+            },
+            "mixer5valveposition": {
+                "name": "Valve Opening"
+            },
+            "mixer6valveposition": {
+                "name": "Valve Opening"
+            },
+            "mixer7valveposition": {
+                "name": "Valve Opening"
+            },
+            "circuit1name": {
+                "name": "Circuit 1 Name"
+            },
+            "circuit2name": {
+                "name": "Circuit 2 Name"
+            },
+            "circuit3name": {
+                "name": "Circuit 3 Name"
+            },
+            "circuit4name": {
+                "name": "Circuit 4 Name"
+            },
+            "circuit5name": {
+                "name": "Circuit 5 Name"
+            },
+            "circuit6name": {
+                "name": "Circuit 6 Name"
+            },
+            "circuit7name": {
+                "name": "Circuit 7 Name"
+            },
+            "detectalarmsettings": {
+                "name": "Alarm Detection Settings (raw)"
+            },
+            "detectalarmstate": {
+                "name": "Detected Alarm State (raw)"
+            },
+            "workstate2": {
+                "name": "Work State 2 (raw)"
+            },
+            "workstate3": {
+                "name": "Work State 3 (raw)"
+            },
+            "workstate4": {
+                "name": "Work State 4 (raw)"
+            },
+            "last_communication": {
+                "name": "Last communication"
+            },
+            "consecutive_failures": {
+                "name": "Consecutive communication failures"
+            }
         },
         "binary_sensor": {
-            "manual_mode_active": { "name": "Manual Mode Active" },
-            "alarmbits_1": { "name": "Alarm Bits 1" },
-            "alarmbits_2": { "name": "Alarm Bits 2" },
-            "alarmbits_3": { "name": "Alarm Bits 3" },
-            "alarmbits_4": { "name": "Alarm Bits 4" },
-            "alarmbits_5": { "name": "Alarm Bits 5" }
+            "manual_mode_active": {
+                "name": "Manual Mode Active"
+            },
+            "alarmbits_1": {
+                "name": "Alarm Bits 1"
+            },
+            "alarmbits_2": {
+                "name": "Alarm Bits 2"
+            },
+            "alarmbits_3": {
+                "name": "Alarm Bits 3"
+            },
+            "alarmbits_4": {
+                "name": "Alarm Bits 4"
+            },
+            "alarmbits_5": {
+                "name": "Alarm Bits 5"
+            }
         },
         "number": {
-            "hdwtsetpoint": { "name": "DHW Setpoint" },
-            "hdwminsettemp": { "name": "DHW Min Temp" },
-            "hdwmaxsettemp": { "name": "DHW Max Temp" },
-            "buforlongloadtime": { "name": "Force buffer tank loading (minutes)" },
-            "hdwlegionsetpoint": { "name": "Anti-Legionella Target Temperature" },
-            "hdwlegionday": { "name": "Anti-Legionella Day" },
-            "hdwlegionhour": { "name": "Anti-Legionella Hour" },
-            "circuit1curvefloor": { "name": "Circuit 1 Heating Curve (Floor)" },
-            "circuit1curveradiator": { "name": "Circuit 1 Heating Curve (Radiator)" },
-            "circuit1basetemp": { "name": "Circuit 1 Base Temperature" },
-            "circuit1tempreduction": { "name": "Circuit 1 Night Setback" },
-            "circuit2curvefloor": { "name": "Circuit 2 Heating Curve (Floor)" },
-            "circuit2curveradiator": { "name": "Circuit 2 Heating Curve (Radiator)" },
-            "circuit2basetemp": { "name": "Circuit 2 Base Temperature" },
-            "circuit2tempreduction": { "name": "Circuit 2 Night Setback" },
-            "circuit3curvefloor": { "name": "Circuit 3 Heating Curve (Floor)" },
-            "circuit3curveradiator": { "name": "Circuit 3 Heating Curve (Radiator)" },
-            "circuit3basetemp": { "name": "Circuit 3 Base Temperature" },
-            "circuit3tempreduction": { "name": "Circuit 3 Night Setback" },
-            "circuit4curvefloor": { "name": "Circuit 4 Heating Curve (Floor)" },
-            "circuit4curveradiator": { "name": "Circuit 4 Heating Curve (Radiator)" },
-            "circuit4basetemp": { "name": "Circuit 4 Base Temperature" },
-            "circuit4tempreduction": { "name": "Circuit 4 Night Setback" },
-            "circuit5curvefloor": { "name": "Circuit 5 Heating Curve (Floor)" },
-            "circuit5curveradiator": { "name": "Circuit 5 Heating Curve (Radiator)" },
-            "circuit5basetemp": { "name": "Circuit 5 Base Temperature" },
-            "circuit5tempreduction": { "name": "Circuit 5 Night Setback" },
-            "circuit6basetemp": { "name": "Circuit 6 Base Temperature" },
-            "circuit6tempreduction": { "name": "Circuit 6 Night Setback" },
-            "circuit7curvefloor": { "name": "Circuit 7 Heating Curve (Floor)" },
-            "circuit7curveradiator": { "name": "Circuit 7 Heating Curve (Radiator)" },
-            "circuit7basetemp": { "name": "Circuit 7 Base Temperature" },
-            "circuit7tempreduction": { "name": "Circuit 7 Night Setback" }
+            "hdwtsetpoint": {
+                "name": "DHW Setpoint"
+            },
+            "hdwminsettemp": {
+                "name": "DHW Min Temp"
+            },
+            "hdwmaxsettemp": {
+                "name": "DHW Max Temp"
+            },
+            "buforlongloadtime": {
+                "name": "Force buffer tank loading (minutes)"
+            },
+            "hdwlegionsetpoint": {
+                "name": "Anti-Legionella Target Temperature"
+            },
+            "hdwlegionday": {
+                "name": "Anti-Legionella Day"
+            },
+            "hdwlegionhour": {
+                "name": "Anti-Legionella Hour"
+            },
+            "circuit1curvefloor": {
+                "name": "Circuit 1 Heating Curve (Floor)"
+            },
+            "circuit1curveradiator": {
+                "name": "Circuit 1 Heating Curve (Radiator)"
+            },
+            "circuit1basetemp": {
+                "name": "Circuit 1 Base Temperature"
+            },
+            "circuit1tempreduction": {
+                "name": "Circuit 1 Night Setback"
+            },
+            "circuit2curvefloor": {
+                "name": "Circuit 2 Heating Curve (Floor)"
+            },
+            "circuit2curveradiator": {
+                "name": "Circuit 2 Heating Curve (Radiator)"
+            },
+            "circuit2basetemp": {
+                "name": "Circuit 2 Base Temperature"
+            },
+            "circuit2tempreduction": {
+                "name": "Circuit 2 Night Setback"
+            },
+            "circuit3curvefloor": {
+                "name": "Circuit 3 Heating Curve (Floor)"
+            },
+            "circuit3curveradiator": {
+                "name": "Circuit 3 Heating Curve (Radiator)"
+            },
+            "circuit3basetemp": {
+                "name": "Circuit 3 Base Temperature"
+            },
+            "circuit3tempreduction": {
+                "name": "Circuit 3 Night Setback"
+            },
+            "circuit4curvefloor": {
+                "name": "Circuit 4 Heating Curve (Floor)"
+            },
+            "circuit4curveradiator": {
+                "name": "Circuit 4 Heating Curve (Radiator)"
+            },
+            "circuit4basetemp": {
+                "name": "Circuit 4 Base Temperature"
+            },
+            "circuit4tempreduction": {
+                "name": "Circuit 4 Night Setback"
+            },
+            "circuit5curvefloor": {
+                "name": "Circuit 5 Heating Curve (Floor)"
+            },
+            "circuit5curveradiator": {
+                "name": "Circuit 5 Heating Curve (Radiator)"
+            },
+            "circuit5basetemp": {
+                "name": "Circuit 5 Base Temperature"
+            },
+            "circuit5tempreduction": {
+                "name": "Circuit 5 Night Setback"
+            },
+            "circuit6basetemp": {
+                "name": "Circuit 6 Base Temperature"
+            },
+            "circuit6tempreduction": {
+                "name": "Circuit 6 Night Setback"
+            },
+            "circuit7curvefloor": {
+                "name": "Circuit 7 Heating Curve (Floor)"
+            },
+            "circuit7curveradiator": {
+                "name": "Circuit 7 Heating Curve (Radiator)"
+            },
+            "circuit7basetemp": {
+                "name": "Circuit 7 Base Temperature"
+            },
+            "circuit7tempreduction": {
+                "name": "Circuit 7 Night Setback"
+            }
         },
         "switch": {
             "hdwstartoneloading": {

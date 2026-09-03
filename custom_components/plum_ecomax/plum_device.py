@@ -84,6 +84,9 @@ class PlumDevice:
         # surfaces a "connection lost" repair issue once this crosses a
         # threshold, and resets it to 0 on any successful transaction.
         self.consecutive_failures = 0
+        # Wall-clock time of the last transaction that got a valid response
+        # (None until the first one). Surfaced as a diagnostic sensor.
+        self.last_success_ts: float | None = None
         # Raw result code (e.g. 0x7D auth error, 0x7F generic error) from
         # the most recent write the boiler explicitly rejected -- distinct
         # from "never got a response at all". Cleared on the next
@@ -586,6 +589,7 @@ class PlumDevice:
                 return None
 
             self.consecutive_failures = 0
+            self.last_success_ts = time.time()
             return result
         return None
 
