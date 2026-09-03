@@ -1,7 +1,7 @@
 # Inventaire des DP — candidats non exposés dans HA
 
-Scan du 2026-08-07 16:09, boîtier 192.168.1.38 (`scan_device_map.py` +
-re-vérification manuelle des faux négatifs — voir méthodologie ci-dessous).
+Scan du 2026-08-07 16:09 sur une chaudière de référence (`scan_device_map.py`
++ re-vérification manuelle des faux négatifs — voir méthodologie ci-dessous).
 
 **570 paramètres répondent** sur cette chaudière sur les 594 du catalogue
 (`device_map_ecomax360i.json`), dont **404 ne sont pas encore des entités
@@ -488,5 +488,5 @@ HA**. Regroupés ci-dessous par thème pour faciliter le tri.
 | `sourcetempatstart` | `nan` |
 | `temppowgz` | `0.0` |
 | `tempsettings` | `1` |
-| `uid` | `1M86DIP6H1GQE1H6P3KGIH5` |
+| `uid` | `<numéro de série, RAW 23 caractères>` |
 | `worktime` | `0` |

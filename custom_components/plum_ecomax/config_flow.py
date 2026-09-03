@@ -46,7 +46,7 @@ def _build_data_schema(defaults: dict) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(
-                CONF_IP_ADDRESS, default=defaults.get(CONF_IP_ADDRESS, "192.168.1.38")
+                CONF_IP_ADDRESS, default=defaults.get(CONF_IP_ADDRESS, vol.UNDEFINED)
             ): str,
             vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): int,
             vol.Optional(CONF_USERNAME, default=defaults.get(CONF_USERNAME, "admin")): str,

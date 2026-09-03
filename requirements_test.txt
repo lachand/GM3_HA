@@ -1,3 +1,10 @@
-pytest
-pytest-asyncio
-homeassistant
+# homeassistant is intentionally a floor, not a pin: CI's Python matrix
+# (3.13, 3.14) already forces a realistic HA (>=2026.7 / 2026.8+), and the
+# floor below is the oldest release this integration is expected to work on
+# -- it uses DataUpdateCoordinator(config_entry=...) (HA 2024.8+),
+# OptionsFlow.config_entry as a read-only property (2024.11+), and
+# ConfigEntry.async_create_background_task. 2025.2.0 is the first
+# Python-3.13 release, matching the lowest CI matrix entry.
+homeassistant>=2025.2.0
+pytest~=9.1
+pytest-asyncio~=1.4
