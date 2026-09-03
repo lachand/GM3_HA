@@ -16,12 +16,14 @@ Once installed via HACS, you can set up the integration via the Home Assistant g
 This integration aims to support the primary functions of the ecoMAX controller:
 
 * **Monitoring:** Read current temperatures (feeder, boiler, outside, etc.), boiler status, and fuel consumption.
-* **Control:** Adjust target temperatures and operation modes, per-circuit heating curves, and the DHW anti-legionella cycle.
+* **Control:** Adjust target temperatures and operation modes, per-circuit heating curves, cooling setpoints, the DHW anti-legionella cycle, and the DHW circulation pump timing.
+* **Weekly schedule:** Read the comfort/eco weekly program per circuit and for DHW as a calendar, and rewrite it with the **`plum_ecomax.set_schedule`** service (target day(s), one or more comfort time ranges — everything else becomes eco).
 * **Sensors:** Binary sensors for pumps and fan status, plus the boiler's serial number (shown on the device page) and any circuit names configured on the physical panel.
-* **Diagnostics & alerts:** A "manual mode active" binary sensor, coarse alarm-bit indicators, and repair issues in Settings → Repairs when an alarm is active, a write is rejected by the boiler, or the connection is lost.
+* **Diagnostics & alerts:** A "manual mode active" binary sensor, coarse alarm-bit indicators, "last communication" / "consecutive failures" link-health sensors, and repair issues in Settings → Repairs when an alarm is active, a write is rejected by the boiler, or the connection is lost.
 * **Reference values:** Buttons to save the current heating-curve/DHW configuration as a reference snapshot and restore it later.
+* **Honest polling:** live telemetry (temperatures, pump/alarm state) is re-read every polling cycle, so the configured interval actually bounds how stale a reading can be; setpoints and schedules are cached longer.
 * **Batched, persistent connection:** Several parameters are read per network request instead of one connection per value, and the TCP connection to the boiler is kept open across polls (with automatic reconnection) instead of reconnecting every time.
-* **Diagnostics download:** Downloadable diagnostics snapshot from the device page (Settings → Devices & Services → Plum EcoMAX → Download diagnostics).
+* **Diagnostics download:** Downloadable redacted diagnostics snapshot from the device page (Settings → Devices & Services → Plum EcoMAX → Download diagnostics).
 * **Reconfigurable:** IP address, port, credentials, active circuits, and polling interval can be changed later via **Reconfigure** on the integration, without deleting and re-adding it.
 
 ### A note on "force" parameters
@@ -58,7 +60,11 @@ Any of these can be changed later via **Reconfigure** on the integration card, w
 
 ## Development
 
-Unit and regression tests live in `tests/` (`pytest tests/`), and run automatically in CI on every push/PR alongside `hassfest` and HACS validation. See `DP_INVENTORY.md` for the catalog of boiler parameters not yet exposed as entities.
+Unit and regression tests live in `tests/` (`pytest tests/`). CI runs them on a Python 3.13/3.14 matrix (matching the Home Assistant releases users actually run) alongside `ruff check` / `ruff format --check`, `hassfest`, and HACS validation. Minimum supported Home Assistant: **2025.2**. See `DP_INVENTORY.md` for the catalog of boiler parameters not yet exposed as entities.
+
+### Upgrading to 0.3.0
+
+The `detectalarmstate` register is no longer a "problem" binary sensor (it read as a permanent false alarm on real hardware) — it's now a plain diagnostic sensor. The old `binary_sensor.*_detectalarmstate` entity becomes unavailable after restart; remove it from the entity registry, or delete and re-add the integration, to clear it.
 
 ## Disclaimer
 
