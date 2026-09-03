@@ -1,18 +1,19 @@
-import logging
 import datetime
-from typing import Any, List, Optional
+import logging
+from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
-from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, WEEKDAY_TO_SLUGS, CONF_ACTIVE_CIRCUITS
+from .const import CONF_ACTIVE_CIRCUITS, DOMAIN, WEEKDAY_TO_SLUGS
 from .device import circuit_device_info, hdw_device_info
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -84,7 +85,7 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime.datetime, end_date: datetime.datetime
-    ) -> List[CalendarEvent]:
+    ) -> list[CalendarEvent]:
         """Generates events based on the system type.
 
         Args:
@@ -97,27 +98,27 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         """
         events = []
         current_day = start_date
-        
+
         while current_day <= end_date:
             weekday = current_day.weekday()
             slugs = WEEKDAY_TO_SLUGS.get(weekday)
-            
-            if not slugs: 
+
+            if not slugs:
                 current_day += datetime.timedelta(days=1)
                 continue
 
             suffix_am, suffix_pm = slugs
-            
+
             if self._system_type == "circuit":
                 slug_am = f"circuit{self._index}{suffix_am}"
                 slug_pm = f"circuit{self._index}{suffix_pm}"
             else:
                 slug_am = f"hdw{suffix_am}"
                 slug_pm = f"hdw{suffix_pm}"
-            
+
             val_am = self.coordinator.data.get(slug_am)
             val_pm = self.coordinator.data.get(slug_pm)
-            
+
             if val_am is not None and val_pm is not None:
                 try:
                     day_events = self._decode_day(current_day, int(val_am), int(val_pm))
@@ -126,10 +127,12 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
                     pass
 
             current_day += datetime.timedelta(days=1)
-            
+
         return events
 
-    def _decode_day(self, date_base: datetime.datetime, val_am: int, val_pm: int) -> List[CalendarEvent]:
+    def _decode_day(
+        self, date_base: datetime.datetime, val_am: int, val_pm: int
+    ) -> list[CalendarEvent]:
         """Decodes 48-bit binary schedule data for a single day.
 
         Args:
@@ -142,10 +145,13 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         """
         events = []
         slots = []
-        for i in range(24): slots.append((val_am >> i) & 1 == 1)
-        for i in range(24): slots.append((val_pm >> i) & 1 == 1)
-        
-        if not slots: return []
+        for i in range(24):
+            slots.append((val_am >> i) & 1 == 1)
+        for i in range(24):
+            slots.append((val_pm >> i) & 1 == 1)
+
+        if not slots:
+            return []
 
         current_start_slot = 0
         current_state = slots[0]
@@ -156,7 +162,7 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
                 events.append(self._create_event(date_base, current_start_slot, i, current_state))
                 current_state = state
                 current_start_slot = i
-        
+
         events.append(self._create_event(date_base, current_start_slot, 48, current_state))
         return events
 
@@ -176,13 +182,20 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
         start_m = (start_slot % 2) * 30
         end_h = end_slot // 2
         end_m = (end_slot % 2) * 30
-        
-        dt_start = dt_util.as_local(date_base.replace(hour=int(start_h), minute=int(start_m), second=0, microsecond=0))
-        
+
+        dt_start = dt_util.as_local(
+            date_base.replace(hour=int(start_h), minute=int(start_m), second=0, microsecond=0)
+        )
+
         if end_h >= 24:
-            dt_end = dt_util.as_local(date_base.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(days=1))
+            dt_end = dt_util.as_local(
+                date_base.replace(hour=0, minute=0, second=0, microsecond=0)
+                + datetime.timedelta(days=1)
+            )
         else:
-            dt_end = dt_util.as_local(date_base.replace(hour=int(end_h), minute=int(end_m), second=0, microsecond=0))
+            dt_end = dt_util.as_local(
+                date_base.replace(hour=int(end_h), minute=int(end_m), second=0, microsecond=0)
+            )
 
         if is_active:
             summary = "Active"
@@ -191,13 +204,8 @@ class PlumEconetCalendar(CoordinatorEntity, CalendarEntity):
             summary = "Eco"
             description = "Heating/DHW eco (Night)"
 
-        return CalendarEvent(
-            summary=summary,
-            start=dt_start,
-            end=dt_end,
-            description=description
-        )
-    
+        return CalendarEvent(summary=summary, start=dt_start, end=dt_end, description=description)
+
     @property
     def device_info(self) -> DeviceInfo:
         """Links the calendar to the correct device registry entry.

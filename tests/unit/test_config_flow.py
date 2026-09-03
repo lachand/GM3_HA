@@ -6,6 +6,7 @@ flow validation, mocked PlumDevice).
 FlowManager/hass -- only `hass.config.path()` is used, stubbed with a
 plain MagicMock.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -52,9 +53,14 @@ class TestValidateConnection:
     async def test_successful_probe_returns_no_error(self, monkeypatch):
         _patch_device(monkeypatch, get_value_return=42)
 
-        error = await _validate_connection(_fake_hass(), {
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PORT: 8899, CONF_PASSWORD: "0000",
-        })
+        error = await _validate_connection(
+            _fake_hass(),
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PORT: 8899,
+                CONF_PASSWORD: "0000",
+            },
+        )
 
         assert error is None
 
@@ -62,9 +68,13 @@ class TestValidateConnection:
     async def test_map_load_failure_returns_cannot_load_map(self, monkeypatch):
         _patch_device(monkeypatch, load_map_error=OSError("no such file"))
 
-        error = await _validate_connection(_fake_hass(), {
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000",
-        })
+        error = await _validate_connection(
+            _fake_hass(),
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PASSWORD: "0000",
+            },
+        )
 
         assert error == "cannot_load_map"
 
@@ -72,9 +82,13 @@ class TestValidateConnection:
     async def test_no_value_returned_means_cannot_connect(self, monkeypatch):
         _patch_device(monkeypatch, get_value_return=None)
 
-        error = await _validate_connection(_fake_hass(), {
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000",
-        })
+        error = await _validate_connection(
+            _fake_hass(),
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PASSWORD: "0000",
+            },
+        )
 
         assert error == "cannot_connect"
 
@@ -82,9 +96,13 @@ class TestValidateConnection:
     async def test_exception_during_read_means_cannot_connect(self, monkeypatch):
         _patch_device(monkeypatch, get_value_error=OSError("connection refused"))
 
-        error = await _validate_connection(_fake_hass(), {
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000",
-        })
+        error = await _validate_connection(
+            _fake_hass(),
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PASSWORD: "0000",
+            },
+        )
 
         assert error == "cannot_connect"
 
@@ -92,13 +110,15 @@ class TestValidateConnection:
 class TestBuildDataSchema:
     def test_schema_validates_full_input(self):
         schema = _build_data_schema({})
-        result = schema({
-            CONF_IP_ADDRESS: "192.168.1.38",
-            CONF_PORT: 8899,
-            CONF_USERNAME: "admin",
-            CONF_PASSWORD: "0000",
-            CONF_ACTIVE_CIRCUITS: ["2"],
-        })
+        result = schema(
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PORT: 8899,
+                CONF_USERNAME: "admin",
+                CONF_PASSWORD: "0000",
+                CONF_ACTIVE_CIRCUITS: ["2"],
+            }
+        )
         assert result[CONF_IP_ADDRESS] == "192.168.1.38"
         assert result[CONF_ACTIVE_CIRCUITS] == ["2"]
 
@@ -128,41 +148,61 @@ class TestBuildDataSchema:
 
     def test_update_interval_defaults_when_omitted(self):
         schema = _build_data_schema({})
-        result = schema({
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
-        })
+        result = schema(
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PASSWORD: "0000",
+                CONF_ACTIVE_CIRCUITS: ["2"],
+            }
+        )
         assert result[CONF_UPDATE_INTERVAL] == UPDATE_INTERVAL
 
     def test_update_interval_default_reflects_prior_input(self):
         schema = _build_data_schema({CONF_UPDATE_INTERVAL: 60})
-        result = schema({
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
-        })
+        result = schema(
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PASSWORD: "0000",
+                CONF_ACTIVE_CIRCUITS: ["2"],
+            }
+        )
         assert result[CONF_UPDATE_INTERVAL] == 60
 
     def test_update_interval_accepts_value_within_bounds(self):
         schema = _build_data_schema({})
-        result = schema({
-            CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
-            CONF_UPDATE_INTERVAL: 90,
-        })
+        result = schema(
+            {
+                CONF_IP_ADDRESS: "192.168.1.38",
+                CONF_PASSWORD: "0000",
+                CONF_ACTIVE_CIRCUITS: ["2"],
+                CONF_UPDATE_INTERVAL: 90,
+            }
+        )
         assert result[CONF_UPDATE_INTERVAL] == 90
 
     def test_update_interval_rejects_value_below_minimum(self):
         schema = _build_data_schema({})
         with pytest.raises(vol.Invalid):
-            schema({
-                CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
-                CONF_UPDATE_INTERVAL: MIN_UPDATE_INTERVAL - 1,
-            })
+            schema(
+                {
+                    CONF_IP_ADDRESS: "192.168.1.38",
+                    CONF_PASSWORD: "0000",
+                    CONF_ACTIVE_CIRCUITS: ["2"],
+                    CONF_UPDATE_INTERVAL: MIN_UPDATE_INTERVAL - 1,
+                }
+            )
 
     def test_update_interval_rejects_value_above_maximum(self):
         schema = _build_data_schema({})
         with pytest.raises(vol.Invalid):
-            schema({
-                CONF_IP_ADDRESS: "192.168.1.38", CONF_PASSWORD: "0000", CONF_ACTIVE_CIRCUITS: ["2"],
-                CONF_UPDATE_INTERVAL: MAX_UPDATE_INTERVAL + 1,
-            })
+            schema(
+                {
+                    CONF_IP_ADDRESS: "192.168.1.38",
+                    CONF_PASSWORD: "0000",
+                    CONF_ACTIVE_CIRCUITS: ["2"],
+                    CONF_UPDATE_INTERVAL: MAX_UPDATE_INTERVAL + 1,
+                }
+            )
 
 
 class TestOptionsFlowConstruction:

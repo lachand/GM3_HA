@@ -4,8 +4,9 @@ This module handles dropdown selection entities (SelectEntity). It is used
 for parameters that have a discrete set of options, such as the DHW mode
 (Off, Manual, Auto) or other enumerated settings.
 """
+
 import logging
-from typing import Any, Dict
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -17,6 +18,7 @@ from .const import DOMAIN, SELECT_TYPES
 from .device import hdw_device_info
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -39,11 +41,14 @@ async def async_setup_entry(
     # Config format: "slug": ("Name", Map_To_HA, Map_To_Plum)
     for slug, (name, map_to_ha, map_to_plum) in SELECT_TYPES.items():
         if slug in coordinator.device.params_map:
-            entities.append(PlumEconetSelect(coordinator, entry.entry_id, slug, name, map_to_ha, map_to_plum))
+            entities.append(
+                PlumEconetSelect(coordinator, entry.entry_id, slug, name, map_to_ha, map_to_plum)
+            )
         else:
             _LOGGER.debug("Select '%s' not found in device map, skipping.", slug)
 
     async_add_entities(entities)
+
 
 class PlumEconetSelect(CoordinatorEntity, SelectEntity):
     """Representation of a multi-choice parameter (Enum).
@@ -52,9 +57,18 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
     mapping internal integer values to human-readable string options
     (e.g., mapping 0->'Off', 1->'Manual').
     """
+
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry_id: str, slug: str, name: str, map_to_ha: Dict[int, str], map_to_plum: Dict[str, int]):
+    def __init__(
+        self,
+        coordinator,
+        entry_id: str,
+        slug: str,
+        name: str,
+        map_to_ha: dict[int, str],
+        map_to_plum: dict[str, int],
+    ):
         """Initializes the select entity.
 
         Args:
@@ -109,7 +123,7 @@ class PlumEconetSelect(CoordinatorEntity, SelectEntity):
             option: The option selected by the user.
         """
         target_val = self._map_to_plum.get(option)
-        
+
         if target_val is not None:
             _LOGGER.info("Setting %s to %s (raw: %s)", self._log_name, option, target_val)
             await self.coordinator.async_set_value(self._slug, target_val)

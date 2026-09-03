@@ -7,6 +7,7 @@ real: it does frame-helper / debouncer setup that needs a fuller hass than
 this project's hass=MagicMock() fixture. Patching it lets this test observe
 exactly what PlumDataUpdateCoordinator forwards upstream.
 """
+
 from __future__ import annotations
 
 from datetime import timedelta

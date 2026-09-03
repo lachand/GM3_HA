@@ -4,6 +4,7 @@ Covers async_setup_entry filtering (only creates entities for slugs present
 in the device map), option mapping in both directions (raw int <-> HA
 option string), the write path, and unique_id scoping by entry_id.
 """
+
 from __future__ import annotations
 
 import logging

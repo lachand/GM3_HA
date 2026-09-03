@@ -8,13 +8,13 @@ entity reads. So `circuitNactive` was never in `available_slugs`, never
 re-polled, and `coordinator.data.get(active_slug)` stayed None forever
 (-> hvac_mode always HEAT, an OFF from HA reverting at the next poll).
 """
+
 from __future__ import annotations
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from homeassistant.components.climate import HVACMode
 
 from custom_components.plum_ecomax.climate import PlumEcomaxClimate
@@ -91,7 +91,7 @@ async def test_detection_targets_include_circuit_active_slugs():
 
     async def fake_get_values(candidates, retries=5):
         captured["candidates"] = list(candidates)
-        return {s: 1 for s in candidates}
+        return dict.fromkeys(candidates, 1)
 
     coord.device = MagicMock()
     coord.device.get_values = fake_get_values

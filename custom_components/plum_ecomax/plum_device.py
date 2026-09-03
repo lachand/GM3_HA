@@ -10,13 +10,14 @@ Attributes:
     CMD_READ_VAL (int): Command ID to read a parameter (0x43).
     CMD_WRITE_FORCE (int): Command ID to write a parameter (0x29).
 """
+
 import asyncio
 import json
-import struct
 import logging
 import socket
+import struct
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,16 @@ STOP_BYTE = 0x16
 # Wire size of a decoded value per type (spec 1.4.2), used to walk batched
 # multi-parameter responses without a length prefix per value.
 VALUE_BYTE_LEN = {
-    "BYTE": 1, "SHORT_INT": 1,
-    "WORD": 2, "INT": 2,
-    "DWORD": 4, "LONG_INT": 4, "FLOAT": 4,
+    "BYTE": 1,
+    "SHORT_INT": 1,
+    "WORD": 2,
+    "INT": 2,
+    "DWORD": 4,
+    "LONG_INT": 4,
+    "FLOAT": 4,
 }
 DEFAULT_BATCH_SIZE = 16
+
 
 class PlumDevice:
     """Handles low-level communication with the Plum EcoMAX boiler.
@@ -62,7 +68,7 @@ class PlumDevice:
         self.password = password
         self.user = user
         self.map_file = map_file
-        self.params_map: Dict[str, Any] = {}
+        self.params_map: dict[str, Any] = {}
         self.session_id = 10
         self._data_cache = {}
         # Serializes all socket transactions so a background write and a
@@ -72,7 +78,7 @@ class PlumDevice:
         # Persistent connection: reused across transactions instead of a
         # fresh connect/close per request (see _socket_transaction). None
         # means "not currently connected".
-        self._sock: Optional[socket.socket] = None
+        self._sock: socket.socket | None = None
         # Consecutive fully-failed transactions (both reconnect attempts
         # exhausted, or no valid frame within timeout) -- coordinator.py
         # surfaces a "connection lost" repair issue once this crosses a
@@ -84,7 +90,7 @@ class PlumDevice:
         # successful write. coordinator.py uses this to decide whether a
         # write that was never confirmed deserves a specific "rejected"
         # repair issue instead of just the generic warning log.
-        self.last_write_error: Optional[int] = None
+        self.last_write_error: int | None = None
 
     def load_map(self):
         """Loads the parameter definition map from the JSON file.
@@ -96,7 +102,7 @@ class PlumDevice:
             ValueError: If the map file isn't valid JSON.
         """
         try:
-            with open(self.map_file, 'r') as f:
+            with open(self.map_file) as f:
                 self.params_map = json.load(f)
         except Exception as e:
             logger.error("Error loading map from %s: %s", self.map_file, e)
@@ -113,27 +119,36 @@ class PlumDevice:
         Returns:
             bytes: The binary representation of the value, or None if encoding fails.
         """
-        ptype = param_def['type']
-        exp = param_def['exponent']
-        
+        ptype = param_def["type"]
+        exp = param_def["exponent"]
+
         # Exponent handling (e.g., 20.5 -> 205 if exponent=1)
         if ptype != "FLOAT" and isinstance(value, (int, float)) and exp != 0:
-            value = int(round(value / (10 ** exp)))
+            value = round(value / (10**exp))
 
         try:
             # Struct formats per spec 1.4.2: BYTE/WORD/DWORD are unsigned,
             # SHORT_INT/INT/LONG_INT are signed. RAW is spec's STRING type
             # ("a sequence of characters followed by byte 00").
-            if ptype == "FLOAT": return struct.pack("<f", float(value))
-            elif ptype == "BYTE": return struct.pack("B", int(value))
-            elif ptype == "SHORT_INT": return struct.pack("<b", int(value))
-            elif ptype == "WORD": return struct.pack("<H", int(value))
-            elif ptype == "INT": return struct.pack("<h", int(value))
-            elif ptype == "DWORD": return struct.pack("<I", int(value))
-            elif ptype == "LONG_INT": return struct.pack("<i", int(value))
-            elif ptype == "RAW": return str(value).encode("utf-8") + b"\x00"
+            if ptype == "FLOAT":
+                return struct.pack("<f", float(value))
+            elif ptype == "BYTE":
+                return struct.pack("B", int(value))
+            elif ptype == "SHORT_INT":
+                return struct.pack("<b", int(value))
+            elif ptype == "WORD":
+                return struct.pack("<H", int(value))
+            elif ptype == "INT":
+                return struct.pack("<h", int(value))
+            elif ptype == "DWORD":
+                return struct.pack("<I", int(value))
+            elif ptype == "LONG_INT":
+                return struct.pack("<i", int(value))
+            elif ptype == "RAW":
+                return str(value).encode("utf-8") + b"\x00"
             return None
-        except Exception: return None
+        except Exception:
+            return None
 
     def _decode(self, data: bytes, param_def: dict) -> Any:
         """Decodes raw bytes into a Python value.
@@ -145,8 +160,8 @@ class PlumDevice:
         Returns:
             Any: The decoded value (float, int, or bool).
         """
-        ptype = param_def['type']
-        exp = param_def['exponent']
+        ptype = param_def["type"]
+        exp = param_def["exponent"]
         try:
             val = None
             if ptype == "FLOAT" and len(data) >= 4:
@@ -168,10 +183,11 @@ class PlumDevice:
                 val = data.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
 
             if val is not None and isinstance(val, (int, float)) and exp != 0:
-                val = val * (10 ** exp)
+                val = val * (10**exp)
                 val = round(val, 2)
             return val
-        except Exception: return None
+        except Exception:
+            return None
 
     # --- API ---
     async def get_value(self, slug: str, retries: int = 3) -> Any:
@@ -188,8 +204,9 @@ class PlumDevice:
             Any: The current value, or the last cached value if communication fails.
         """
         param = self.params_map.get(slug)
-        if not param: return None
-        pid = param['id']
+        if not param:
+            return None
+        pid = param["id"]
 
         async with self._io_lock:
             for attempt in range(1, retries + 1):
@@ -204,7 +221,7 @@ class PlumDevice:
 
     async def get_values(
         self, slugs: list, retries: int = 2, batch_size: int = DEFAULT_BATCH_SIZE
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Asynchronously fetches several parameter values in as few frames as possible.
 
         Spec 1.5.3.12 (cmd 0x43) allows multiple parameter blocks in a
@@ -224,7 +241,7 @@ class PlumDevice:
         """
         items = []
         raw_slugs = []
-        slug_by_pid: Dict[int, str] = {}
+        slug_by_pid: dict[int, str] = {}
         for slug in slugs:
             param = self.params_map.get(slug)
             if not param:
@@ -241,10 +258,10 @@ class PlumDevice:
             items.append((pid, param))
             slug_by_pid[pid] = slug
 
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
         async with self._io_lock:
             for i in range(0, len(items), batch_size):
-                chunk = items[i:i + batch_size]
+                chunk = items[i : i + batch_size]
                 for attempt in range(1, retries + 1):
                     values = await asyncio.to_thread(self._sync_get_values_batch, chunk)
                     for pid, val in values.items():
@@ -271,7 +288,9 @@ class PlumDevice:
 
         return results
 
-    async def set_value(self, slug: str, value: Any, password: str = None, user: str = None) -> bool:
+    async def set_value(
+        self, slug: str, value: Any, password: str | None = None, user: str | None = None
+    ) -> bool:
         """Asynchronously writes a parameter value.
 
         Args:
@@ -284,22 +303,24 @@ class PlumDevice:
             bool: True if the write operation was confirmed by the device.
         """
         param = self.params_map.get(slug)
-        if not param: return False
-        
+        if not param:
+            return False
+
         # Use stored credentials if not provided
         target_pass = password if password is not None else self.password
         target_user = user if user is not None else self.user
-        
-        pid = param['id']
-        encoded = self._encode(value, param)
-        if not encoded: return False
 
-        user_bytes = (target_user.encode('utf-8') + b'\x00') if target_user else b'\x00'
-        pass_bytes = (target_pass.encode('utf-8') + b'\x00') if target_pass else b'\x00'
-        full_payload = user_bytes + pass_bytes + b'\x01' + struct.pack("<H", pid) + encoded
+        pid = param["id"]
+        encoded = self._encode(value, param)
+        if not encoded:
+            return False
+
+        user_bytes = (target_user.encode("utf-8") + b"\x00") if target_user else b"\x00"
+        pass_bytes = (target_pass.encode("utf-8") + b"\x00") if target_pass else b"\x00"
+        full_payload = user_bytes + pass_bytes + b"\x01" + struct.pack("<H", pid) + encoded
 
         async with self._io_lock:
-            for attempt in range(1, 4):
+            for _attempt in range(1, 4):
                 if await asyncio.to_thread(self._sync_set_value, pid, full_payload):
                     return True
                 await asyncio.sleep(1.0)
@@ -317,7 +338,9 @@ class PlumDevice:
 
         func, resp = result
         if func != CMD_READ_RESP or len(resp) < 7:
-            logger.debug("Unexpected read response for pid=%s: func=0x%02X len=%d", pid, func, len(resp))
+            logger.debug(
+                "Unexpected read response for pid=%s: func=0x%02X len=%d", pid, func, len(resp)
+            )
             # Wrong func or a too-short payload isn't a valid answer to
             # this specific request -- on a persistent connection that
             # means the stream is desynced (e.g. a stale/duplicate frame
@@ -372,7 +395,7 @@ class PlumDevice:
         self.last_write_error = None
         return True
 
-    def _sync_get_values_batch(self, items: list) -> Dict[int, Any]:
+    def _sync_get_values_batch(self, items: list) -> dict[int, Any]:
         """Blocking worker to fetch several values in a single frame.
 
         Builds one block per requested pid (spec 1.5.3.12), each holding
@@ -416,28 +439,32 @@ class PlumDevice:
             return {}
 
         n_blocks = resp[2]
-        values: Dict[int, Any] = {}
+        values: dict[int, Any] = {}
         offset = 3
         for _ in range(n_blocks):
             if offset + 3 > len(resp):
                 break  # truncated response, stop trusting what's left
             n_params = resp[offset]
-            first_pid = struct.unpack("<H", resp[offset + 1:offset + 3])[0]
+            first_pid = struct.unpack("<H", resp[offset + 1 : offset + 3])[0]
             offset += 3
 
             param_def = next((p for pid, p in items if pid == first_pid), None)
             if n_params != 1 or param_def is None:
                 # We only ever request one param per block; anything else
                 # means we can't reliably know this block's value width.
-                logger.debug("Unexpected block shape (n_params=%s, pid=%s) in batch read", n_params, first_pid)
+                logger.debug(
+                    "Unexpected block shape (n_params=%s, pid=%s) in batch read",
+                    n_params,
+                    first_pid,
+                )
                 break
 
             value_len = VALUE_BYTE_LEN.get(param_def["type"], 4)
             if offset + 1 + value_len > len(resp):
                 break  # truncated mid-block, stop here with what we have
 
-            status = resp[offset]
-            raw = resp[offset + 1: offset + 1 + value_len]
+            # resp[offset] is the per-block status byte (unused); value follows it.
+            raw = resp[offset + 1 : offset + 1 + value_len]
             offset += 1 + value_len
             values[first_pid] = self._decode(raw, param_def)
 
@@ -449,17 +476,19 @@ class PlumDevice:
         header = struct.pack("<HHHB", l_val, DEST_ID, SOURCE_ID, cmd)
         body = header + payload
         chk = self._crc16(body)
-        return b'\x68' + body + struct.pack(">H", chk) + b'\x16'
-    
+        return b"\x68" + body + struct.pack(">H", chk) + b"\x16"
+
     def _crc16(self, data: bytes) -> int:
         """Calculates the CRC16 checksum for the frame."""
         crc = 0x0000
         poly = 0x1021
         for b in data:
-            crc ^= (b << 8)
+            crc ^= b << 8
             for _ in range(8):
-                if crc & 0x8000: crc = (crc << 1) ^ poly
-                else: crc <<= 1
+                if crc & 0x8000:
+                    crc = (crc << 1) ^ poly
+                else:
+                    crc <<= 1
                 crc &= 0xFFFF
         return crc
 
@@ -490,7 +519,7 @@ class PlumDevice:
         """
         self._close_connection()
 
-    def _socket_transaction(self, frame: bytes, timeout: float = 2.0) -> Optional[tuple]:
+    def _socket_transaction(self, frame: bytes, timeout: float = 2.0) -> tuple | None:
         """Executes one request/response transaction over a persistent
         connection, reusing it across calls instead of reconnecting for
         every single transaction (a full TCP handshake per read/write adds
@@ -560,7 +589,7 @@ class PlumDevice:
             return result
         return None
 
-    def _read_response(self, sock: socket.socket, timeout: float) -> Optional[tuple]:
+    def _read_response(self, sock: socket.socket, timeout: float) -> tuple | None:
         """Reads from an already-connected socket until a structurally
         valid frame is found or the deadline passes.
 
@@ -584,7 +613,7 @@ class PlumDevice:
             sock.settimeout(max(deadline - time.time(), 0.01))
             try:
                 chunk = sock.recv(1024)
-            except socket.timeout:
+            except TimeoutError:
                 break
             if not chunk:
                 raise OSError("Connection closed by peer")
@@ -595,7 +624,7 @@ class PlumDevice:
                 return result
         return None
 
-    def _extract_valid_frame(self, buffer: bytearray) -> Optional[tuple]:
+    def _extract_valid_frame(self, buffer: bytearray) -> tuple | None:
         """Scans a buffer for the first structurally valid response frame.
 
         Rejects candidates with an inconsistent length, a bad CRC, a wrong
@@ -617,7 +646,7 @@ class PlumDevice:
             if i + 3 > len(buffer):
                 return None  # header incomplete, wait for more data
 
-            l_val = struct.unpack("<H", bytes(buffer[i + 1:i + 3]))[0]
+            l_val = struct.unpack("<H", bytes(buffer[i + 1 : i + 3]))[0]
             if l_val < 5 or l_val > 4096:
                 i += 1
                 continue
@@ -626,8 +655,8 @@ class PlumDevice:
             if i + frame_len > len(buffer):
                 return None  # frame incomplete, wait for more data
 
-            candidate = bytes(buffer[i:i + frame_len])
-            body = candidate[1:1 + 2 + l_val]  # CRC covers L + Dest + Src + Func + Data
+            candidate = bytes(buffer[i : i + frame_len])
+            body = candidate[1 : 1 + 2 + l_val]  # CRC covers L + Dest + Src + Func + Data
             received_crc = struct.unpack(">H", candidate[-3:-1])[0]
 
             if candidate[-1] != STOP_BYTE or self._crc16(body) != received_crc:

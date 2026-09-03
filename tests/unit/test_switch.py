@@ -7,6 +7,7 @@ path, and device routing (HDW_SWITCHES -> DHW device, everything else ->
 boiler device), plus unique_id scoping by entry_id -- the pattern that was
 missing here before device.py existed (IMPROVEMENT_PLAN.md section C).
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -61,28 +62,36 @@ class TestIsOn:
         # comparison against on_value.
         name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
         coordinator = _make_coordinator({}, {"hdwpumpforce": 512})
-        switch = PlumEconetSwitch(coordinator, "entry123", "hdwpumpforce", name, on_value, off_value)
+        switch = PlumEconetSwitch(
+            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+        )
 
         assert switch.is_on is True
 
     def test_is_on_false_for_off_value(self):
         name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
         coordinator = _make_coordinator({}, {"hdwpumpforce": 0})
-        switch = PlumEconetSwitch(coordinator, "entry123", "hdwpumpforce", name, on_value, off_value)
+        switch = PlumEconetSwitch(
+            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+        )
 
         assert switch.is_on is False
 
     def test_is_on_false_when_value_missing(self):
         name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
         coordinator = _make_coordinator({}, {})
-        switch = PlumEconetSwitch(coordinator, "entry123", "hdwpumpforce", name, on_value, off_value)
+        switch = PlumEconetSwitch(
+            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+        )
 
         assert switch.is_on is False
 
     def test_is_on_false_for_non_numeric_value(self):
         name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
         coordinator = _make_coordinator({}, {"hdwpumpforce": "not-a-number"})
-        switch = PlumEconetSwitch(coordinator, "entry123", "hdwpumpforce", name, on_value, off_value)
+        switch = PlumEconetSwitch(
+            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+        )
 
         assert switch.is_on is False
 
@@ -92,7 +101,9 @@ class TestWritePath:
     async def test_turn_on_writes_on_value(self):
         name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
         coordinator = _make_coordinator({}, {})
-        switch = PlumEconetSwitch(coordinator, "entry123", "hdwpumpforce", name, on_value, off_value)
+        switch = PlumEconetSwitch(
+            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+        )
 
         await switch.async_turn_on()
 
@@ -102,7 +113,9 @@ class TestWritePath:
     async def test_turn_off_writes_off_value(self):
         name, on_value, off_value = SWITCH_TYPES["hdwpumpforce"]
         coordinator = _make_coordinator({}, {})
-        switch = PlumEconetSwitch(coordinator, "entry123", "hdwpumpforce", name, on_value, off_value)
+        switch = PlumEconetSwitch(
+            coordinator, "entry123", "hdwpumpforce", name, on_value, off_value
+        )
 
         await switch.async_turn_off()
 

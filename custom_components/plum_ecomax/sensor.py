@@ -7,24 +7,26 @@ and attaches it to the correct device in Home Assistant.
 It also implements critical safety checks to handle 'NaN' (Not a Number)
 values that might be returned by the boiler during initialization or errors.
 """
+
 import logging
-import re
 import math  # <--- CRITICAL: Import required for NaN checks
+import re
+
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
-from homeassistant.const import EntityCategory
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from .const import DOMAIN, SENSOR_TYPES, CONF_ACTIVE_CIRCUITS, DIAGNOSTIC_SENSOR_SLUGS
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import CONF_ACTIVE_CIRCUITS, DIAGNOSTIC_SENSOR_SLUGS, DOMAIN, SENSOR_TYPES
 from .device import boiler_device_info, circuit_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Sets up sensor entities based on the configuration.
 
@@ -55,7 +57,7 @@ async def async_setup_entry(
 
         target_circuit_id = None
         # Automatic circuit detection via Regex (e.g., tempcircuit1 -> 1)
-        match = re.search(r'(circuit|mixer)(\d+)', slug)
+        match = re.search(r"(circuit|mixer)(\d+)", slug)
 
         if match:
             found_id = match.group(2)
@@ -71,6 +73,7 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
 
+
 class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Plum sensor entity with NaN protection.
 
@@ -78,7 +81,7 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
     it explicitly checks for valid float values and filters out
     NaN/Infinity to prevent errors in Home Assistant's recorder.
     """
-    
+
     _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry, slug, config, circuit_id=None):
@@ -94,12 +97,12 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._slug = slug
         self._attr_translation_key = slug
-        
+
         # Unpack configuration from const.py
         self._unit = config[0]
         self._icon = config[1]
         self._device_class = config[2]
-        
+
         self._entry_id = entry.entry_id
         self._circuit_id = circuit_id
 
@@ -122,7 +125,7 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
             float | str | None: The sanitized value.
         """
         val = self.coordinator.data.get(self._slug)
-        
+
         if val is None:
             return None
 
@@ -137,7 +140,7 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
             except (ValueError, TypeError):
                 # Conversion failed but a number was expected -> Return None
                 return None
-        
+
         # For text sensors, return the value as is
         return val
 
@@ -151,11 +154,11 @@ class PlumEcomaxSensor(CoordinatorEntity, SensorEntity):
         val = self.coordinator.data.get(self._slug)
         if val is None:
             return False
-        
+
         # If it's a number, check for NaN
         if isinstance(val, float) and math.isnan(val):
             return False
-            
+
         return super().available
 
     @property

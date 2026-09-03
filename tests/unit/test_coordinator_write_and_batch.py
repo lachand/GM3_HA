@@ -17,6 +17,7 @@ tests don't care about repair-issue side effects -- tests that DO care
 request the `_mock_issues` fixture by name to get the same Mocks and
 assert on them.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -33,12 +34,11 @@ def _no_real_sleeps(monkeypatch):
     """_perform_repeated_write sleeps 2s between each of its 5 attempts;
     without this the failure-path tests take ~8s each for no benefit.
     """
+
     async def _instant_sleep(_seconds):
         return None
 
-    monkeypatch.setattr(
-        "custom_components.plum_ecomax.coordinator.asyncio.sleep", _instant_sleep
-    )
+    monkeypatch.setattr("custom_components.plum_ecomax.coordinator.asyncio.sleep", _instant_sleep)
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +50,9 @@ def _mock_issues(monkeypatch):
     return mock_raise, mock_clear
 
 
-def _make_coordinator(device=None, available_slugs=None, cache=None, timestamps=None, ttl=300, entry_id="entry123"):
+def _make_coordinator(
+    device=None, available_slugs=None, cache=None, timestamps=None, ttl=300, entry_id="entry123"
+):
     coordinator = object.__new__(PlumDataUpdateCoordinator)
     coordinator.device = device if device is not None else MagicMock()
     # config_entry.async_create_background_task schedules the repeated-write
@@ -196,7 +198,10 @@ class TestBatchedPolling:
         device = MagicMock()
         device.get_values = AsyncMock(return_value={})  # didn't answer this round
         coordinator = _make_coordinator(
-            device=device, available_slugs=["tempcwu"], cache={"tempcwu": 42}, timestamps={"tempcwu": 0}
+            device=device,
+            available_slugs=["tempcwu"],
+            cache={"tempcwu": 42},
+            timestamps={"tempcwu": 0},
         )
 
         data = await coordinator._async_update_data()
@@ -232,7 +237,9 @@ class TestWriteRejectedIssue:
         mock_raise, mock_clear = _mock_issues
         device = MagicMock()
         device.set_value = AsyncMock(return_value=True)
-        coordinator = _make_coordinator(device=device, cache={"hdwpumpforce": 512}, entry_id="entryA")
+        coordinator = _make_coordinator(
+            device=device, cache={"hdwpumpforce": 512}, entry_id="entryA"
+        )
 
         await coordinator._perform_repeated_write("hdwpumpforce", 512, previous_val=0)
 
@@ -245,7 +252,9 @@ class TestWriteRejectedIssue:
         device = MagicMock()
         device.set_value = AsyncMock(return_value=False)
         device.last_write_error = 0x7D
-        coordinator = _make_coordinator(device=device, cache={"hdwpumpforce": 512}, entry_id="entryA")
+        coordinator = _make_coordinator(
+            device=device, cache={"hdwpumpforce": 512}, entry_id="entryA"
+        )
 
         await coordinator._perform_repeated_write("hdwpumpforce", 512, previous_val=0)
 
@@ -269,7 +278,9 @@ class TestWriteRejectedIssue:
         device = MagicMock()
         device.set_value = AsyncMock(return_value=False)
         device.last_write_error = None
-        coordinator = _make_coordinator(device=device, cache={"hdwpumpforce": 512}, entry_id="entryA")
+        coordinator = _make_coordinator(
+            device=device, cache={"hdwpumpforce": 512}, entry_id="entryA"
+        )
 
         await coordinator._perform_repeated_write("hdwpumpforce", 512, previous_val=0)
 
@@ -354,7 +365,7 @@ class TestDetectAvailableParametersIncludesSwitchesAndSelects:
 
     @pytest.mark.asyncio
     async def test_switch_and_select_slugs_are_probed_at_startup(self):
-        from custom_components.plum_ecomax.const import SWITCH_TYPES, SELECT_TYPES
+        from custom_components.plum_ecomax.const import SELECT_TYPES, SWITCH_TYPES
 
         a_switch_slug = next(iter(SWITCH_TYPES))
         a_select_slug = next(iter(SELECT_TYPES))
@@ -382,9 +393,9 @@ class TestDetectionRobustness:
         # Batched read only answered one; the other real slug was collateral
         # damage of a poisoned batch, "ghostparam" is genuinely absent.
         device.get_values = AsyncMock(return_value={"tempcwu": 50.0})
-        device.get_value = AsyncMock(side_effect=lambda slug, retries=2: (
-            21.0 if slug == "tempbuforup" else None
-        ))
+        device.get_value = AsyncMock(
+            side_effect=lambda slug, retries=2: 21.0 if slug == "tempbuforup" else None
+        )
         coordinator = _make_coordinator(device=device)
 
         await coordinator._detect_available_parameters()

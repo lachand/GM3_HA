@@ -4,8 +4,10 @@ This module handles binary switch entities. These are typically used for
 boolean parameters or simple on/off commands on the boiler, such as
 forcing the Domestic Hot Water (DHW) heating cycle.
 """
+
 import logging
 from typing import Any
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -19,6 +21,7 @@ from .device import boiler_device_info, hdw_device_info
 HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce", "hdwstartlegion"}
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -42,11 +45,14 @@ async def async_setup_entry(
         name, on_value, off_value = cfg
         # We only create the entity if the parameter exists on the device
         if slug in coordinator.device.params_map:
-            entities.append(PlumEconetSwitch(coordinator, entry.entry_id, slug, name, on_value, off_value))
+            entities.append(
+                PlumEconetSwitch(coordinator, entry.entry_id, slug, name, on_value, off_value)
+            )
         else:
             _LOGGER.debug("Switch '%s' not found in device map, skipping.", slug)
 
     async_add_entities(entities)
+
 
 class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
     """Representation of a binary switch.
@@ -55,9 +61,18 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
     It uses the data coordinator to read the current state and write
     changes back to the device (e.g., setting a value of 1 for On and 0 for Off).
     """
+
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, entry_id: str, slug: str, name: str, on_value: int = 1, off_value: int = 0):
+    def __init__(
+        self,
+        coordinator,
+        entry_id: str,
+        slug: str,
+        name: str,
+        on_value: int = 1,
+        off_value: int = 0,
+    ):
         super().__init__(coordinator)
         self._entry_id = entry_id
         self._slug = slug

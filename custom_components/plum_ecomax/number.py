@@ -4,12 +4,15 @@ This module provides number entities for configurable numerical parameters
 of the boiler, such as hysteresis, target temperatures (if not covered by climate),
 or other adjustable settings defined in `NUMBER_TYPES`.
 """
+
 import logging
 import re
+
 from homeassistant.components.number import NumberEntity
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from .const import DOMAIN, NUMBER_TYPES, CONF_ACTIVE_CIRCUITS
+
+from .const import CONF_ACTIVE_CIRCUITS, DOMAIN, NUMBER_TYPES
 from .device import boiler_device_info, circuit_device_info, hdw_device_info, mixers_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,6 +83,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if entities:
         async_add_entities(entities)
 
+
 class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
     """Representation of a Plum EcoMAX numerical parameter.
 
@@ -87,7 +91,8 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
     hysteresis) within a defined range (min, max, step). It reflects changes
     immediately in the UI via the coordinator's optimistic update logic.
     """
-    _attr_has_entity_name = True 
+
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry, slug, config):
         """Initializes the number entity.
@@ -100,13 +105,13 @@ class PlumEcomaxNumber(CoordinatorEntity, NumberEntity):
         """
         super().__init__(coordinator)
         self._slug = slug
-        
+
         # --- INDEX CHANGE ---
         self._min_val = config[0]
         self._max_val = config[1]
         self._step_val = config[2]
         self._icon_val = config[3]
-        
+
         self._entry_id = entry.entry_id
         self._attr_translation_key = slug
 

@@ -11,16 +11,13 @@ integration) so it doubles as a fast pre-commit-style guard: every
 `from .module import name` in the component must point at a module file
 that exists AND actually defines/re-exports that name.
 """
+
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 
-COMPONENT_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "custom_components"
-    / "plum_ecomax"
-)
+COMPONENT_DIR = Path(__file__).resolve().parents[2] / "custom_components" / "plum_ecomax"
 
 
 def _parse(path: Path) -> ast.Module:
@@ -49,10 +46,7 @@ def _module_level_names(path: Path) -> set[str]:
 
 def _relative_imports(path: Path) -> list[ast.ImportFrom]:
     tree = _parse(path)
-    return [
-        node for node in tree.body
-        if isinstance(node, ast.ImportFrom) and node.level == 1
-    ]
+    return [node for node in tree.body if isinstance(node, ast.ImportFrom) and node.level == 1]
 
 
 def _iter_component_files():
@@ -68,7 +62,9 @@ class TestRelativeImportsResolve:
                     continue  # `from . import x` -- package __init__, not checked here
                 target = COMPONENT_DIR / f"{node.module}.py"
                 if not target.exists():
-                    broken.append(f"{path.name}: 'from .{node.module} import ...' -- {target.name} does not exist")
+                    broken.append(
+                        f"{path.name}: 'from .{node.module} import ...' -- {target.name} does not exist"
+                    )
 
         assert not broken, (
             "Broken relative import(s) -- module file doesn't exist, this "

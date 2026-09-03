@@ -13,7 +13,9 @@ config entry, so a second boiler (second config entry) would collide with
 the first on the same DHW device. `tests/regression/test_device_info_scoping.py`
 guards against that pattern coming back.
 """
+
 from homeassistant.helpers.entity import DeviceInfo
+
 from .const import DOMAIN
 
 

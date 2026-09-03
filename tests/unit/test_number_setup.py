@@ -6,6 +6,7 @@ CONF_ACTIVE_CIRCUITS entirely, creating heating-curve entities for every
 circuit 1-7 in the device map regardless of which ones are actually wired
 up in the user's installation (they only use circuit 2).
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -32,8 +33,10 @@ def _make_hass_and_entry(params_map: dict, active_circuits: list[str]):
 @pytest.mark.asyncio
 async def test_only_active_circuit_numbers_are_created():
     params_map = {
-        "circuit1curvefloor": {"id": 1}, "circuit1basetemp": {"id": 2},
-        "circuit2curvefloor": {"id": 3}, "circuit2basetemp": {"id": 4},
+        "circuit1curvefloor": {"id": 1},
+        "circuit1basetemp": {"id": 2},
+        "circuit2curvefloor": {"id": 3},
+        "circuit2basetemp": {"id": 4},
         "circuit3curvefloor": {"id": 5},
         "buforlongloadtime": {"id": 6},  # not circuit-prefixed, always eligible
     }

@@ -4,32 +4,29 @@ This module handles the Domestic Hot Water (DHW/ECS) tank control.
 It allows setting the target temperature, viewing the current temperature,
 and switching between operation modes (Off, Manual/Performance, Auto/Eco).
 """
+
 import logging
 import math
-from typing import Any, Optional
+from typing import Any
 
 from homeassistant.components.water_heater import (
+    STATE_ECO,
+    STATE_OFF,
+    STATE_PERFORMANCE,
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
-    STATE_OFF,
-    STATE_ECO,
-    STATE_PERFORMANCE,
 )
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature, PRECISION_WHOLE
+from homeassistant.const import ATTR_TEMPERATURE, PRECISION_WHOLE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.entity import DeviceInfo
 
-from .const import (
-    DOMAIN,
-    WATER_HEATER_TYPES,
-    PLUM_TO_HA_WATER_HEATER,
-    HA_TO_PLUM_WATER_HEATER
-)
+from .const import DOMAIN, HA_TO_PLUM_WATER_HEATER, PLUM_TO_HA_WATER_HEATER, WATER_HEATER_TYPES
 from .device import hdw_device_info
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -53,10 +50,10 @@ async def async_setup_entry(
 
     for key, slugs in WATER_HEATER_TYPES.items():
         current_temp, target_temp, min_temp, max_temp, mode_slug = slugs
-        
+
         has_current = current_temp in coordinator.device.params_map
         has_target = target_temp in coordinator.device.params_map
-        
+
         if has_current and has_target:
             _LOGGER.info("Creating Water Heater '%s' (parameters found).", key)
             entities.append(
@@ -64,14 +61,22 @@ async def async_setup_entry(
                     coordinator,
                     entry.entry_id,
                     key,
-                    current_temp, target_temp, min_temp, max_temp, mode_slug
+                    current_temp,
+                    target_temp,
+                    min_temp,
+                    max_temp,
+                    mode_slug,
                 )
             )
         else:
             _LOGGER.error(
                 "Failed to create Water Heater '%s'. Missing parameters in "
                 "device_map.json: Temp='%s' (present=%s), Target='%s' (present=%s)",
-                key, current_temp, has_current, target_temp, has_target,
+                key,
+                current_temp,
+                has_current,
+                target_temp,
+                has_target,
             )
 
     async_add_entities(entities)
@@ -87,17 +92,26 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
 
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_precision = PRECISION_WHOLE
-    
+
     # Supported features: Target Temperature and Operation Mode
     _attr_supported_features = (
-        WaterHeaterEntityFeature.TARGET_TEMPERATURE | 
-        WaterHeaterEntityFeature.OPERATION_MODE
+        WaterHeaterEntityFeature.TARGET_TEMPERATURE | WaterHeaterEntityFeature.OPERATION_MODE
     )
-    
+
     # Supported modes (Off, Performance=Manual, Eco=Auto)
     _attr_operation_list = [STATE_OFF, STATE_PERFORMANCE, STATE_ECO]
 
-    def __init__(self, coordinator, entry_id, translation_key, current_slug, target_slug, min_slug, max_slug, mode_slug):
+    def __init__(
+        self,
+        coordinator,
+        entry_id,
+        translation_key,
+        current_slug,
+        target_slug,
+        min_slug,
+        max_slug,
+        mode_slug,
+    ):
         """Initializes the water heater entity.
 
         Args:
@@ -132,7 +146,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         return hdw_device_info(self._entry_id)
 
     @property
-    def current_temperature(self) -> Optional[float]:
+    def current_temperature(self) -> float | None:
         """Returns the current water temperature.
 
         Includes checks for NaN (Not a Number) to prevent errors.
@@ -145,22 +159,26 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             return None
         try:
             f_val = float(val)
-            if math.isnan(f_val): return None
+            if math.isnan(f_val):
+                return None
             return f_val
         except (ValueError, TypeError):
             return None
 
     @property
-    def target_temperature(self) -> Optional[float]:
+    def target_temperature(self) -> float | None:
         """Returns the current target temperature setpoint.
 
         Returns:
             float | None: The setpoint.
         """
         val = self.coordinator.data.get(self._target_slug)
-        if val is None: return None
-        try: return float(val)
-        except (ValueError, TypeError): return None
+        if val is None:
+            return None
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return None
 
     @property
     def min_temp(self) -> float:
@@ -175,9 +193,11 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         val = self.coordinator.data.get(self._min_slug)
         try:
             f = float(val)
-            if math.isnan(f): return 20.0
+            if math.isnan(f):
+                return 20.0
             return f
-        except (ValueError, TypeError): return 20.0
+        except (ValueError, TypeError):
+            return 20.0
 
     @property
     def max_temp(self) -> float:
@@ -192,12 +212,14 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         val = self.coordinator.data.get(self._max_slug)
         try:
             f = float(val)
-            if math.isnan(f): return 60.0
+            if math.isnan(f):
+                return 60.0
             return f
-        except (ValueError, TypeError): return 60.0
+        except (ValueError, TypeError):
+            return 60.0
 
     @property
-    def current_operation(self) -> Optional[str]:
+    def current_operation(self) -> str | None:
         """Returns the current operation mode.
 
         Maps internal Plum codes to Home Assistant states:
@@ -212,7 +234,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         # If raw_mode is None (startup), return Off for safety
         if raw_mode is None:
             return STATE_OFF
-            
+
         return PLUM_TO_HA_WATER_HEATER.get(raw_mode, STATE_OFF)
 
     async def async_set_temperature(self, **kwargs) -> None:
@@ -224,7 +246,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is None:
             return
-        
+
         _LOGGER.info("Setting DHW target: %s", temp)
         # Convert to int as Plum usually expects integers for setpoints
         await self.coordinator.async_set_value(self._target_slug, int(temp))
@@ -236,7 +258,7 @@ class PlumEcomaxWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             operation_mode: The desired mode (e.g., "performance", "eco").
         """
         target_val = HA_TO_PLUM_WATER_HEATER.get(operation_mode)
-        
+
         if target_val is not None:
             _LOGGER.info("Setting DHW mode: %s -> %s", operation_mode, target_val)
             await self.coordinator.async_set_value(self._mode_slug, target_val)

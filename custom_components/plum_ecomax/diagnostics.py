@@ -6,6 +6,7 @@ from the Home Assistant UI (Settings > Devices & Services > Plum EcoMAX >
 Download diagnostics) instead of having to reproduce state by hand for a
 bug report.
 """
+
 from __future__ import annotations
 
 import time
@@ -57,7 +58,9 @@ async def async_get_config_entry_diagnostics(
         ),
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
-            "last_exception": repr(coordinator.last_exception) if coordinator.last_exception else None,
+            "last_exception": repr(coordinator.last_exception)
+            if coordinator.last_exception
+            else None,
             "update_interval": str(coordinator.update_interval),
             "available_slugs": sorted(coordinator.available_slugs),
             "delta_rejection_counts": dict(getattr(coordinator, "_delta_rejection_counts", {})),

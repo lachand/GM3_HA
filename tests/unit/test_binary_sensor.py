@@ -10,6 +10,7 @@ Covers:
   registers, plus the repair-issue mirroring (create while on, delete while
   off/removed) so an active alarm surfaces in Settings -> Repairs too.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -160,8 +161,10 @@ class TestAlarmBinarySensor:
         sensor.hass = MagicMock()
         sensor.async_write_ha_state = MagicMock()
 
-        with patch("custom_components.plum_ecomax.binary_sensor.raise_issue") as mock_raise, \
-             patch("custom_components.plum_ecomax.binary_sensor.clear_issue") as mock_clear:
+        with (
+            patch("custom_components.plum_ecomax.binary_sensor.raise_issue") as mock_raise,
+            patch("custom_components.plum_ecomax.binary_sensor.clear_issue") as mock_clear,
+        ):
             sensor._handle_coordinator_update()
 
         mock_raise.assert_called_once()
@@ -179,8 +182,10 @@ class TestAlarmBinarySensor:
         sensor.hass = MagicMock()
         sensor.async_write_ha_state = MagicMock()
 
-        with patch("custom_components.plum_ecomax.binary_sensor.raise_issue") as mock_raise, \
-             patch("custom_components.plum_ecomax.binary_sensor.clear_issue") as mock_clear:
+        with (
+            patch("custom_components.plum_ecomax.binary_sensor.raise_issue") as mock_raise,
+            patch("custom_components.plum_ecomax.binary_sensor.clear_issue") as mock_clear,
+        ):
             sensor._handle_coordinator_update()
 
         mock_clear.assert_called_once_with(sensor.hass, sensor._issue_id)

@@ -12,6 +12,7 @@ since their __init__ only needs a coordinator and a few plain arguments --
 see tests/unit/test_plum_device.py's docstring for why the heavier
 DataUpdateCoordinator/ConfigEntry test harness is avoided here too.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -39,19 +40,27 @@ class TestUniqueIdSnapshot:
         assert entity.unique_id == f"plum_ecomax_{ENTRY_ID}_switch_hdwpumpforce"
 
     def test_select(self):
-        entity = PlumEconetSelect(_coordinator(), ENTRY_ID, "hdwusermode", "DHW Mode", {0: "off"}, {"off": 0})
+        entity = PlumEconetSelect(
+            _coordinator(), ENTRY_ID, "hdwusermode", "DHW Mode", {0: "off"}, {"off": 0}
+        )
         assert entity.unique_id == f"plum_ecomax_{ENTRY_ID}_select_hdwusermode"
 
     def test_number(self):
-        entity = PlumEcomaxNumber(_coordinator(), _ENTRY, "hdwtsetpoint", (10, 60, 1, "mdi:thermometer"))
+        entity = PlumEcomaxNumber(
+            _coordinator(), _ENTRY, "hdwtsetpoint", (10, 60, 1, "mdi:thermometer")
+        )
         assert entity.unique_id == f"plum_ecomax_{ENTRY_ID}_number_hdwtsetpoint"
 
     def test_water_heater(self):
-        entity = PlumEcomaxWaterHeater(_coordinator(), ENTRY_ID, "hdw", "cur", "tgt", "min", "max", "mode")
+        entity = PlumEcomaxWaterHeater(
+            _coordinator(), ENTRY_ID, "hdw", "cur", "tgt", "min", "max", "mode"
+        )
         assert entity.unique_id == f"plum_ecomax_{ENTRY_ID}_hdw"
 
     def test_sensor(self):
-        entity = PlumEcomaxSensor(_coordinator(), _ENTRY, "tempcwu", ("°C", "mdi:thermometer", "temperature"))
+        entity = PlumEcomaxSensor(
+            _coordinator(), _ENTRY, "tempcwu", ("°C", "mdi:thermometer", "temperature")
+        )
         assert entity.unique_id == f"plum_ecomax_{ENTRY_ID}_tempcwu"
 
     def test_climate(self):

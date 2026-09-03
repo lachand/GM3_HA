@@ -17,15 +17,11 @@ Attributes:
     PLUM_TO_HA_HVAC (dict): Mapping from Plum WorkMode (0-3) to HA HVAC Modes.
     SENSOR_TYPES (dict): Definitions of available sensors [Unit, Icon, DeviceClass].
 """
+
 from homeassistant.const import (
-    UnitOfTemperature,
     PERCENTAGE,
     UnitOfPower,
-    UnitOfTime,
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    CONF_IP_ADDRESS,
-    CONF_PORT,
+    UnitOfTemperature,
 )
 
 # --- CONFIGURATION SWITCH (ON/OFF) ---
@@ -42,17 +38,9 @@ SWITCH_TYPES = {
 
 # Mapping specific to DHW (ECS) Mode
 # 0 = Off, 1 = Manual/Constant, 2 = Schedule/Auto
-DHW_MODES_TO_HA = {
-    0: "off",
-    1: "manual",
-    2: "auto"
-}
+DHW_MODES_TO_HA = {0: "off", 1: "manual", 2: "auto"}
 
-HA_TO_DHW_MODES = {
-    "off": 0,
-    "manual": 1,
-    "auto": 2
-}
+HA_TO_DHW_MODES = {"off": 0, "manual": 1, "auto": 2}
 
 # Format: "slug": ("Friendly Name", Map_To_HA, Map_To_Plum)
 SELECT_TYPES = {
@@ -72,10 +60,10 @@ PRESET_ECO = "eco"
 
 # Mapping Plum -> Home Assistant
 PLUM_TO_HA_HVAC = {
-    0: HVAC_MODE_HEAT, # Frost protection (0) = Active heating
-    1: HVAC_MODE_HEAT, # Comfort
-    2: HVAC_MODE_HEAT, # Eco
-    3: HVAC_MODE_AUTO, # Auto
+    0: HVAC_MODE_HEAT,  # Frost protection (0) = Active heating
+    1: HVAC_MODE_HEAT,  # Comfort
+    2: HVAC_MODE_HEAT,  # Eco
+    3: HVAC_MODE_AUTO,  # Auto
 }
 
 PLUM_TO_HA_PRESET = {
@@ -162,7 +150,6 @@ SENSOR_TYPES = {
     "tempbufordown": [UnitOfTemperature.CELSIUS, "mdi:water", "temperature"],
     "tempclutch": [UnitOfTemperature.CELSIUS, "mdi:fire-alert", "temperature"],
     "buforsetpoint": [UnitOfTemperature.CELSIUS, "mdi:target", "temperature"],
-
     # No "tempcircuit1": circuit 1 has no dedicated flow-temp register in
     # the device map (id sequence 61,62,63,64,65,[gap],66=tempcircuit2,67=
     # tempcircuit3,...) -- circuit 1's room temperature is already covered
@@ -174,17 +161,15 @@ SENSOR_TYPES = {
     "tempcircuit5": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "tempcircuit6": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "tempcircuit7": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    
-    "circuit1thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "circuit2thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "circuit3thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "circuit4thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-    "circuit5thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    "circuit1thermostattemp": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    "circuit2thermostattemp": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    "circuit3thermostattemp": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    "circuit4thermostattemp": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
+    "circuit5thermostattemp": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     # No "circuit6thermostattemp" in the device map either -- climate.py's
     # fallback chain (circuitNthermostattemp -> tempcircuitN) already
     # covers circuit 6 via tempcircuit6, this was only a dead sensor entry.
-    "circuit7thermostattemp" : [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
-
+    "circuit7thermostattemp": [UnitOfTemperature.CELSIUS, "mdi:radiator", "temperature"],
     "mixer1valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer2valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer3valveposition": [PERCENTAGE, "mdi:valve", None],
@@ -192,7 +177,6 @@ SENSOR_TYPES = {
     "mixer5valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer6valveposition": [PERCENTAGE, "mdi:valve", None],
     "mixer7valveposition": [PERCENTAGE, "mdi:valve", None],
-
     # RAW/STRING parameters (device.py's RAW decode, DP_INVENTORY.md).
     # "uid" is deliberately NOT a sensor -- device.py's boiler_device_info()
     # shows it as the device registry's serial_number instead. It's kept
@@ -204,7 +188,6 @@ SENSOR_TYPES = {
     "circuit5name": [None, "mdi:label-outline", None],
     "circuit6name": [None, "mdi:label-outline", None],
     "circuit7name": [None, "mdi:label-outline", None],
-
     # Raw diagnostic registers (DP_INVENTORY.md "Alarmes & bits de
     # diagnostic"). Exposed as plain integers rather than decoded/booleans:
     # see ALARM_BITMASK_SLUGS above for why these aren't treated as "problem"
@@ -241,9 +224,9 @@ DIAGNOSTIC_SENSOR_SLUGS = {
 CLIMATE_TYPES = {
     str(i): [
         f"circuit{i}thermostattemp",  # current temp (primary)
-        f"tempcircuit{i}",            # current temp (fallback, see climate.py)
-        f"circuit{i}comforttemp",     # target temp
-        f"circuit{i}active",          # HVAC on/off state
+        f"tempcircuit{i}",  # current temp (fallback, see climate.py)
+        f"circuit{i}comforttemp",  # target temp
+        f"circuit{i}active",  # HVAC on/off state
     ]
     for i in range(1, 8)
 }
@@ -252,7 +235,6 @@ NUMBER_TYPES = {
     # Force buffer tank loading for N minutes (0 = disabled)
     # Bypasses the normal temperature comparison logic (useful for solar pre-heating)
     "buforlongloadtime": (0, 180, 1, "mdi:timer"),
-
     # Anti-legionella cycle (DP_INVENTORY.md)
     "hdwlegionsetpoint": (60, 80, 1, "mdi:bacteria-outline"),
     "hdwlegionday": (0, 7, 1, "mdi:calendar"),
@@ -277,18 +259,18 @@ WEEKDAY_TO_SLUGS = {
     3: ("thursdayam", "thursdaypm"),
     4: ("fridayam", "fridaypm"),
     5: ("saturdayam", "saturdaypm"),
-    6: ("sundayam", "sundaypm")
+    6: ("sundayam", "sundaypm"),
 }
 
 # --- WATER HEATER CONFIGURATION ---
 # Format: "Name": (Current_Temp, Setpoint, Min, Max, Mode_Slug, Force_Slug)
 WATER_HEATER_TYPES = {
     "hdw": (
-        "tempcwu",           # Current temperature
-        "hdwtsetpoint",        # Setpoint
-        "hdwminsettemp",     # Min bound
-        "hdwmaxsettemp",     # Max bound
-        "hdwusermode",       # Mode (0=Off, 1=Manual, 2=Auto)
+        "tempcwu",  # Current temperature
+        "hdwtsetpoint",  # Setpoint
+        "hdwminsettemp",  # Min bound
+        "hdwmaxsettemp",  # Max bound
+        "hdwusermode",  # Mode (0=Off, 1=Manual, 2=Auto)
     )
 }
 
@@ -298,29 +280,21 @@ WATER_HEATER_TYPES = {
 # Auto = Eco
 PLUM_TO_HA_WATER_HEATER = {
     0: "off",
-    1: "performance", # Considered as "Manual / Permanent Comfort"
-    2: "eco"          # Considered as "Auto / Schedule"
+    1: "performance",  # Considered as "Manual / Permanent Comfort"
+    2: "eco",  # Considered as "Auto / Schedule"
 }
 
-HA_TO_PLUM_WATER_HEATER = {
-    "off": 0,
-    "performance": 1,
-    "eco": 2
-}
+HA_TO_PLUM_WATER_HEATER = {"off": 0, "performance": 1, "eco": 2}
 
 SCHEDULE_TYPES = {}
-for i in range(1, 8): # Circuits 1 to 7
-    for day_id, (suffix_am, suffix_pm) in WEEKDAY_TO_SLUGS.items():
-        slug_am = f"circuit{i}{suffix_am}"
-        slug_pm = f"circuit{i}{suffix_pm}"
-        SCHEDULE_TYPES[slug_am] = f"Circuit {i} AM"
-        SCHEDULE_TYPES[slug_pm] = f"Circuit {i} PM"
+for i in range(1, 8):  # Circuits 1 to 7
+    for suffix_am, suffix_pm in WEEKDAY_TO_SLUGS.values():
+        SCHEDULE_TYPES[f"circuit{i}{suffix_am}"] = f"Circuit {i} AM"
+        SCHEDULE_TYPES[f"circuit{i}{suffix_pm}"] = f"Circuit {i} PM"
 
-for day_id, (suffix_am, suffix_pm) in WEEKDAY_TO_SLUGS.items():
-    slug_am = f"hdw{suffix_am}"
-    slug_pm = f"hdw{suffix_pm}"
-    SCHEDULE_TYPES[slug_am] = "DHW AM"
-    SCHEDULE_TYPES[slug_pm] = "DHW PM"
+for suffix_am, suffix_pm in WEEKDAY_TO_SLUGS.values():
+    SCHEDULE_TYPES[f"hdw{suffix_am}"] = "DHW AM"
+    SCHEDULE_TYPES[f"hdw{suffix_pm}"] = "DHW PM"
 
 
 # --- POLLING FRESHNESS ---

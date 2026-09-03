@@ -5,6 +5,7 @@ value of every CONFIG-category number entity (heating curves, base temp,
 night setback, anti-legionella, forced buffer loading) and restore them
 later if a value gets changed by mistake.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch

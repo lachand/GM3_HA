@@ -13,6 +13,7 @@ registers that don't have a dedicated per-state parameter on the wire:
   BinarySensorDeviceClass.PROBLEM -- "some bit is set" rather than decoded
   individual bits, whose meaning isn't documented or empirically verified.
 """
+
 import logging
 
 from homeassistant.components.binary_sensor import (

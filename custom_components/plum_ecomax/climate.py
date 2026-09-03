@@ -4,23 +4,23 @@ This module handles the thermostat entities for heating circuits, allowing
 control over target temperatures and HVAC modes (Heat/Off). It supports
 automatic fallback for temperature sensors if the thermostat sensor is missing.
 """
+
 import logging
 import math
+
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import UnitOfTemperature, ATTR_TEMPERATURE
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CONF_ACTIVE_CIRCUITS
+from .const import CONF_ACTIVE_CIRCUITS, DOMAIN
 from .device import circuit_device_info
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Sets up Plum EcoMAX climate entities based on the config entry.
@@ -43,18 +43,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
         current_slug = f"circuit{circuit_id}thermostattemp"
         target_slug = f"circuit{circuit_id}comforttemp"
         active_slug = f"circuit{circuit_id}active"
-        
+
         # Fallback sensor
         if current_slug not in coordinator.device.params_map:
-             current_slug = f"tempcircuit{circuit_id}"
+            current_slug = f"tempcircuit{circuit_id}"
 
         if target_slug in coordinator.device.params_map:
-             entities.append(PlumEcomaxClimate(
-                 coordinator, entry, circuit_id, current_slug, target_slug, active_slug
-            ))
+            entities.append(
+                PlumEcomaxClimate(
+                    coordinator, entry, circuit_id, current_slug, target_slug, active_slug
+                )
+            )
 
     if entities:
         async_add_entities(entities)
+
 
 class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
     """Representation of a Plum EcoMAX heating circuit thermostat.
@@ -63,11 +66,12 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
     It links to the device coordinator to read/write values such as
     target temperature and active state.
     """
+
     _attr_has_entity_name = True
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
-    
+
     _attr_translation_key = "thermostat"
 
     def __init__(self, coordinator, entry, circuit_id, current_slug, target_slug, active_slug):
@@ -107,15 +111,17 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
         return circuit_device_info(self._entry_id, self._circuit_id)
 
     @property
-    def min_temp(self): 
+    def min_temp(self):
         """Returns the minimum target temperature."""
         return 10.0
+
     @property
-    def max_temp(self): 
+    def max_temp(self):
         """Returns the maximum target temperature."""
         return 30.0
+
     @property
-    def target_temperature_step(self): 
+    def target_temperature_step(self):
         """Returns the step size for target temperature."""
         return 0.5
 
@@ -159,7 +165,8 @@ class PlumEcomaxClimate(CoordinatorEntity, ClimateEntity):
             HVACMode: The current mode.
         """
         is_active = self.coordinator.data.get(self._active_slug)
-        if is_active == 0: return HVACMode.OFF
+        if is_active == 0:
+            return HVACMode.OFF
         return HVACMode.HEAT
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:

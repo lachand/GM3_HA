@@ -5,6 +5,7 @@ just pin the exact args passed through, since every call site (alarm
 binary sensors, write-rejected/connection-lost in coordinator.py) relies
 on this shape being consistent.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch

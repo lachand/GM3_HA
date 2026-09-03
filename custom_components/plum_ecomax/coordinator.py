@@ -4,36 +4,37 @@ This module provides the central data management logic for the integration.
 It handles polling, caching, validation, and a robust "fire-and-forget"
 write strategy to ensure commands reach the device despite network latency.
 """
-import logging
+
 import asyncio
+import logging
 import time
 from datetime import timedelta
-from typing import Any, Dict, Tuple, Optional
+
+# Conditional import for typing only
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-# Conditional import for typing only
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .plum_device import PlumDevice
 
 from .const import (
-    DOMAIN,
-    UPDATE_INTERVAL,
-    SENSOR_TYPES,
+    ALARM_BITMASK_SLUGS,
     CLIMATE_TYPES,
+    DEVICE_INFO_PARAMS,
+    DOMAIN,
+    MANUAL_MODE_SLUG,
     NUMBER_TYPES,
     SCHEDULE_TYPES,
-    STATIC_SLUGS,
-    WATER_HEATER_TYPES,
-    SWITCH_TYPES,
     SELECT_TYPES,
-    DEVICE_INFO_PARAMS,
-    ALARM_BITMASK_SLUGS,
-    MANUAL_MODE_SLUG,
+    SENSOR_TYPES,
+    STATIC_SLUGS,
+    SWITCH_TYPES,
+    UPDATE_INTERVAL,
+    WATER_HEATER_TYPES,
 )
 from .issues import clear_issue, raise_issue
 
@@ -76,6 +77,7 @@ VALIDATION_RANGES = {
     "lambda": (0.0, 25.0),
 }
 
+
 class PlumDataUpdateCoordinator(DataUpdateCoordinator):
     """Centralized data management with Robust Data Validation.
 
@@ -111,8 +113,8 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self.available_slugs: list[str] = []
 
         # Cache System
-        self._cache: Dict[str, Any] = {}
-        self._timestamps: Dict[str, float] = {}
+        self._cache: dict[str, Any] = {}
+        self._timestamps: dict[str, float] = {}
         self._cache_lock = asyncio.Lock()
         # TTL for slugs in STATIC_SLUGS (setpoints, curves, schedules,
         # names): long, they don't change on their own. Live telemetry
@@ -120,7 +122,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self.ttl = DEFAULT_TTL
         # Consecutive max_delta rejections per slug -- see
         # MAX_DELTA_REJECTIONS above for why this exists.
-        self._delta_rejection_counts: Dict[str, int] = {}
+        self._delta_rejection_counts: dict[str, int] = {}
 
         super().__init__(
             hass,
@@ -130,7 +132,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=update_interval),
         )
 
-    async def _async_update_data(self) -> Dict[str, Any]:
+    async def _async_update_data(self) -> dict[str, Any]:
         """Main update loop with Validation and Fallback.
 
         Returns:
@@ -161,7 +163,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         # 2. Batch-fetch everything stale in as few frames as possible
         # (spec 1.5.3.12 allows several parameter blocks per request), instead
         # of one TCP connection per parameter.
-        raw_values: Dict[str, Any] = {}
+        raw_values: dict[str, Any] = {}
         if to_fetch:
             try:
                 raw_values = await self.device.get_values(to_fetch, retries=2)
@@ -209,7 +211,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             clear_issue(self.hass, issue_id)
 
-    def _validate_value(self, slug: str, raw_val: Any, cached_val: Any) -> Tuple[bool, Any]:
+    def _validate_value(self, slug: str, raw_val: Any, cached_val: Any) -> tuple[bool, Any]:
         """Sanitizes the raw value based on JSON limits or Generic constraints.
 
         Args:
@@ -223,12 +225,11 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         # A. Basic protocol checks
         if raw_val is None:
             return False, None
-            
-        if isinstance(raw_val, (int, float)):
-            if raw_val == 999.0 or raw_val == 999:
-                _LOGGER.debug("Rejection: %s returned sensor error code %s", slug, raw_val)
-                return False, None
-                
+
+        if isinstance(raw_val, (int, float)) and raw_val in (999, 999.0):
+            _LOGGER.debug("Rejection: %s returned sensor error code %s", slug, raw_val)
+            return False, None
+
         param_def = self.device.params_map.get(slug, {})
         json_min = param_def.get("min")
         json_max = param_def.get("max")
@@ -245,7 +246,11 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
             if json_max is not None and raw_val > json_max:
                 return False, None
 
-            if json_max_delta is not None and cached_val is not None and abs(cached_val - raw_val) > json_max_delta:
+            if (
+                json_max_delta is not None
+                and cached_val is not None
+                and abs(cached_val - raw_val) > json_max_delta
+            ):
                 rejections = self._delta_rejection_counts.get(slug, 0) + 1
                 if rejections < MAX_DELTA_REJECTIONS:
                     self._delta_rejection_counts[slug] = rejections
@@ -267,7 +272,6 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                     break
 
         return True, raw_val
-        
 
     async def async_set_value(self, slug: str, value: Any) -> bool:
         """Writes a value using Optimistic UI + Repeated Background Sends.
@@ -307,7 +311,9 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
 
         return True
 
-    async def _perform_repeated_write(self, slug: str, value: Any, previous_val: Any = None) -> None:
+    async def _perform_repeated_write(
+        self, slug: str, value: Any, previous_val: Any = None
+    ) -> None:
         """Background task to send the write command and reconcile state.
 
         Sends the command up to 5 times, 2 seconds apart, stopping as soon
@@ -335,7 +341,7 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         # and overwrite it. Reading it immediately after our own call --
         # not once at the end of the loop -- keeps this specific to our
         # own write.
-        last_rejection_code: Optional[int] = None
+        last_rejection_code: int | None = None
         for i in range(1, 6):  # up to 5 attempts
             _LOGGER.debug("Sending %s=%s (attempt %d/5)", slug, value, i)
             if await self.device.set_value(slug, value):
@@ -356,7 +362,9 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning(
                     "Write %s=%s was never confirmed by the device after 5 attempts; "
                     "reverting optimistic state to %s.",
-                    slug, value, previous_val,
+                    slug,
+                    value,
+                    previous_val,
                 )
                 if previous_val is not None:
                     self._cache[slug] = previous_val
@@ -389,9 +397,11 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
 
         targets = []
         targets.extend(list(SENSOR_TYPES.keys()))
-        for conf in CLIMATE_TYPES.values(): targets.extend(conf)
+        for conf in CLIMATE_TYPES.values():
+            targets.extend(conf)
         targets.extend(list(NUMBER_TYPES.keys()))
-        for conf in WATER_HEATER_TYPES.values(): targets.extend(conf)
+        for conf in WATER_HEATER_TYPES.values():
+            targets.extend(conf)
         # Added Schedule types to detection
         targets.extend(list(SCHEDULE_TYPES.keys()))
         # SWITCH_TYPES/SELECT_TYPES were missing here entirely: since
@@ -431,7 +441,9 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
             if missing:
                 _LOGGER.debug(
                     "Batched scan returned %d/%d; re-probing %d slug(s) individually",
-                    len(values), len(candidates), len(missing),
+                    len(values),
+                    len(candidates),
+                    len(missing),
                 )
                 for slug in missing:
                     val = await self.device.get_value(slug, retries=2)

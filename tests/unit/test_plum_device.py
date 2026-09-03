@@ -13,6 +13,7 @@ taking an injected transport, so tests that need to control what "arrives
 on the wire" monkeypatch `plum_device.socket.socket` with `_FakeSocket`,
 which scripts `recv()` to return pre-built frames chunk by chunk.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -45,21 +46,27 @@ def _make_device(**overrides) -> PlumDevice:
 # Response to cmd 0x43, session=0x003B (59), one block of 1 param (pid=16,
 # status=0x05, value=00 E0 2B 46) then one block of 3 params (pid=147..149).
 SPEC_READ_RESPONSE = bytes.fromhex(
-    "68"          # start
-    "2000"        # l_val = 0x0020 = 32
-    "0000"        # dest
-    "0100"        # src = 1 (boiler)
-    "C3"          # func = READ_RESP
-    "3B00"        # session = 59
-    "02"          # n_blocks = 2
-    "01" "1000"   # block0: n_params=1, first_pid=16
-    "05" "00E02B46"  # status=5, value (4 bytes)
-    "03" "9300"   # block1: n_params=3, first_pid=147
-    "10" "0F000000"  # status, value
-    "10" "10000000"  # status, value
-    "10" "0A00"      # status, value (2 bytes -- a different type)
-    "F14F"        # CRC
-    "16"          # stop
+    "68"  # start
+    "2000"  # l_val = 0x0020 = 32
+    "0000"  # dest
+    "0100"  # src = 1 (boiler)
+    "C3"  # func = READ_RESP
+    "3B00"  # session = 59
+    "02"  # n_blocks = 2
+    "01"
+    "1000"  # block0: n_params=1, first_pid=16
+    "05"
+    "00E02B46"  # status=5, value (4 bytes)
+    "03"
+    "9300"  # block1: n_params=3, first_pid=147
+    "10"
+    "0F000000"  # status, value
+    "10"
+    "10000000"  # status, value
+    "10"
+    "0A00"  # status, value (2 bytes -- a different type)
+    "F14F"  # CRC
+    "16"  # stop
 )
 
 SPEC_WRITE_OK_RESPONSE = bytes.fromhex("680600000001 00A9E5FC1216".replace(" ", ""))
@@ -83,7 +90,7 @@ class TestExtractValidFrame:
 
     def test_skips_noise_prefix_with_coincidental_start_byte(self):
         device = _make_device()
-        noisy = bytearray(b"\xAB\xCD\x68\xFF") + bytearray(SPEC_READ_RESPONSE)
+        noisy = bytearray(b"\xab\xcd\x68\xff") + bytearray(SPEC_READ_RESPONSE)
         result = device._extract_valid_frame(noisy)
         assert result == device._extract_valid_frame(bytearray(SPEC_READ_RESPONSE))
 
@@ -110,7 +117,7 @@ class TestExtractValidFrame:
         # src field is at offset 5:7; DEST_ID is 1, so use 2 instead.
         wrong_src[5:7] = struct.pack("<H", 2)
         # Recompute CRC so only the source-address check can reject it.
-        body = bytes(wrong_src[1:1 + 2 + struct.unpack("<H", bytes(wrong_src[1:3]))[0]])
+        body = bytes(wrong_src[1 : 1 + 2 + struct.unpack("<H", bytes(wrong_src[1:3]))[0]])
         new_crc = device._crc16(body)
         wrong_src[-3:-1] = struct.pack(">H", new_crc)
         assert device._extract_valid_frame(wrong_src) is None
@@ -119,12 +126,13 @@ class TestExtractValidFrame:
         device = _make_device()
         func, payload = device._extract_valid_frame(bytearray(SPEC_WRITE_OK_RESPONSE))
         assert func == CMD_WRITE_RESP
-        assert payload == b"\xE5"
+        assert payload == b"\xe5"
 
 
 # ---------------------------------------------------------------------------
 # _encode / _decode: signed vs. unsigned per spec 1.4.2
 # ---------------------------------------------------------------------------
+
 
 class TestEncodeDecodeTypes:
     @pytest.mark.parametrize(
@@ -132,7 +140,7 @@ class TestEncodeDecodeTypes:
         [
             ("BYTE", 255, "ff"),
             ("SHORT_INT", -5, "fb"),
-            ("WORD", 40000, "409c"),         # > INT16 max, must not raise
+            ("WORD", 40000, "409c"),  # > INT16 max, must not raise
             ("INT", -100, "9cff"),
             ("DWORD", 3_000_000_000, "005ed0b2"),  # > INT32 max, must not raise
             ("LONG_INT", -2000000000, "006cca88"),
@@ -153,7 +161,7 @@ class TestEncodeDecodeTypes:
     def test_decode_short_int_is_signed(self):
         device = _make_device()
         # 0xFB = 251 unsigned, -5 signed -- must decode as -5.
-        assert device._decode(b"\xFB", {"type": "SHORT_INT", "exponent": 0}) == -5
+        assert device._decode(b"\xfb", {"type": "SHORT_INT", "exponent": 0}) == -5
 
     def test_decode_word_is_unsigned(self):
         device = _make_device()
@@ -215,6 +223,7 @@ class TestRawStringType:
 # get_value / set_value via a fake socket (no real network)
 # ---------------------------------------------------------------------------
 
+
 class _FakeSocket:
     """Stands in for socket.socket: scripts one response per connection,
     delivered as pre-chunked bytes, and records what was sent.
@@ -239,7 +248,7 @@ class _FakeSocket:
     def recv(self, _bufsize: int) -> bytes:
         if self._response is None or self._pos >= len(self._response):
             return b""
-        chunk = self._response[self._pos: self._pos + self._chunk_size]
+        chunk = self._response[self._pos : self._pos + self._chunk_size]
         self._pos += len(chunk)
         return chunk
 
@@ -306,7 +315,7 @@ class TestSyncSetValue:
         # 68 06 00 00 00 01 00 a9 7d <crc> 16, code=0x7D (auth error)
         frame = bytearray(SPEC_WRITE_OK_RESPONSE)
         frame[8] = 0x7D
-        body = bytes(frame[1:1 + 2 + struct.unpack("<H", bytes(frame[1:3]))[0]])
+        body = bytes(frame[1 : 1 + 2 + struct.unpack("<H", bytes(frame[1:3]))[0]])
         new_crc = device._crc16(body)
         frame[-3:-1] = struct.pack(">H", new_crc)
         _patch_socket(monkeypatch, bytes(frame))
@@ -405,6 +414,7 @@ class TestGetValuesRawRouting:
 # pattern.
 # ---------------------------------------------------------------------------
 
+
 class _RaisingOnSendSocket:
     """Stands in for a persistent connection that has silently died (e.g.
     the boiler closed our idle connection): the OS-level send() itself
@@ -451,7 +461,7 @@ class _MultiTransactionSocket:
         self._pos = 0  # a fresh, complete response becomes available
 
     def recv(self, bufsize):
-        chunk = self._response[self._pos:self._pos + bufsize]
+        chunk = self._response[self._pos : self._pos + bufsize]
         self._pos += len(chunk)
         return chunk
 
@@ -528,7 +538,7 @@ class TestLastWriteError:
         device = _make_device()
         frame = bytearray(SPEC_WRITE_OK_RESPONSE)
         frame[8] = 0x7D
-        body = bytes(frame[1:1 + 2 + struct.unpack("<H", bytes(frame[1:3]))[0]])
+        body = bytes(frame[1 : 1 + 2 + struct.unpack("<H", bytes(frame[1:3]))[0]])
         frame[-3:-1] = struct.pack(">H", device._crc16(body))
         _patch_socket(monkeypatch, bytes(frame))
 
@@ -548,6 +558,7 @@ class TestLastWriteError:
 # I/O serialization: a background write and a polling read must never open
 # concurrent socket transactions (IMPROVEMENT_PLAN.md section A).
 # ---------------------------------------------------------------------------
+
 
 class _ConcurrencyTrackingSocket:
     """Fake socket that answers a read or a write appropriately (based on
@@ -613,7 +624,8 @@ class TestIoSerialization:
         _ConcurrencyTrackingSocket.active = 0
         _ConcurrencyTrackingSocket.max_concurrent = 0
         monkeypatch.setattr(
-            plum_device_module.socket, "socket",
+            plum_device_module.socket,
+            "socket",
             lambda *a, **k: _ConcurrencyTrackingSocket(),
         )
 

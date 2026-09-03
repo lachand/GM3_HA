@@ -6,6 +6,7 @@ anti-legionella settings, forced buffer loading -- so a value changed by
 mistake (or while experimenting) can be reverted to a known-good snapshot
 instead of hunting down the original value by hand.
 """
+
 import logging
 
 from homeassistant.components.button import ButtonEntity
@@ -13,7 +14,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CONF_ACTIVE_CIRCUITS
+from .const import CONF_ACTIVE_CIRCUITS, DOMAIN
 from .device import boiler_device_info
 from .number import active_number_slugs, is_config_category_slug
 
@@ -32,10 +33,12 @@ def _snapshot_store(hass, entry_id: str) -> Store:
 async def async_setup_entry(hass, entry, async_add_entities):
     """Sets up the save/restore-defaults buttons."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([
-        PlumSaveDefaultsButton(coordinator, entry),
-        PlumRestoreDefaultsButton(coordinator, entry),
-    ])
+    async_add_entities(
+        [
+            PlumSaveDefaultsButton(coordinator, entry),
+            PlumRestoreDefaultsButton(coordinator, entry),
+        ]
+    )
 
 
 class _PlumDefaultsButtonBase(CoordinatorEntity, ButtonEntity):
@@ -84,7 +87,9 @@ class PlumSaveDefaultsButton(_PlumDefaultsButtonBase):
             if self.coordinator.data.get(slug) is not None
         }
         await _snapshot_store(self.hass, self._entry_id).async_save(snapshot)
-        _LOGGER.info("Saved %d parameter(s) as reference values: %s", len(snapshot), sorted(snapshot))
+        _LOGGER.info(
+            "Saved %d parameter(s) as reference values: %s", len(snapshot), sorted(snapshot)
+        )
 
 
 class PlumRestoreDefaultsButton(_PlumDefaultsButtonBase):

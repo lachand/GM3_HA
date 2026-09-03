@@ -9,6 +9,7 @@ device registry. This instantiates each entity twice, under two different
 config entries, and checks that every device identifier actually differs
 between them -- the only way to prove nothing is hardcoded.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -49,7 +50,7 @@ def _assert_scoped_by_entry(build_entity, label: str):
         f"instead of scoped by entry_id, exactly like the old "
         f"(DOMAIN, 'plum_hdw') bug."
     )
-    for domain, identifier in ids_a:
+    for _domain, identifier in ids_a:
         assert ENTRY_A in identifier, (
             f"{label}: identifier '{identifier}' doesn't embed the entry_id ({ENTRY_A})"
         )
@@ -58,13 +59,17 @@ def _assert_scoped_by_entry(build_entity, label: str):
 class TestDeviceInfoScopedByEntry:
     def test_switch_hdw_variant(self):
         _assert_scoped_by_entry(
-            lambda entry_id: PlumEconetSwitch(_coordinator(), entry_id, "hdwpumpforce", "Force pump", 512, 0),
+            lambda entry_id: PlumEconetSwitch(
+                _coordinator(), entry_id, "hdwpumpforce", "Force pump", 512, 0
+            ),
             "switch (HDW)",
         )
 
     def test_switch_boiler_variant(self):
         _assert_scoped_by_entry(
-            lambda entry_id: PlumEconetSwitch(_coordinator(), entry_id, "hdwstartoneloading", "Reload", 1, 0),
+            lambda entry_id: PlumEconetSwitch(
+                _coordinator(), entry_id, "hdwstartoneloading", "Reload", 1, 0
+            ),
             "switch (boiler fallback)",
         )
 
@@ -81,7 +86,10 @@ class TestDeviceInfoScopedByEntry:
         # so it's the one that actually stays on the generic boiler device.
         _assert_scoped_by_entry(
             lambda entry_id: PlumEcomaxNumber(
-                _coordinator(), SimpleNamespace(entry_id=entry_id), "buforlongloadtime", (0, 180, 1, "mdi:timer")
+                _coordinator(),
+                SimpleNamespace(entry_id=entry_id),
+                "buforlongloadtime",
+                (0, 180, 1, "mdi:timer"),
             ),
             "number (boiler fallback)",
         )
@@ -89,7 +97,10 @@ class TestDeviceInfoScopedByEntry:
     def test_number_hdw_variant(self):
         _assert_scoped_by_entry(
             lambda entry_id: PlumEcomaxNumber(
-                _coordinator(), SimpleNamespace(entry_id=entry_id), "hdwtsetpoint", (10, 60, 1, "mdi:thermometer")
+                _coordinator(),
+                SimpleNamespace(entry_id=entry_id),
+                "hdwtsetpoint",
+                (10, 60, 1, "mdi:thermometer"),
             ),
             "number (hdw)",
         )
@@ -97,7 +108,10 @@ class TestDeviceInfoScopedByEntry:
     def test_number_circuit_variant(self):
         _assert_scoped_by_entry(
             lambda entry_id: PlumEcomaxNumber(
-                _coordinator(), SimpleNamespace(entry_id=entry_id), "circuit2curvefloor", (0.1, 4.0, 0.1, "mdi:chart-bell-curve")
+                _coordinator(),
+                SimpleNamespace(entry_id=entry_id),
+                "circuit2curvefloor",
+                (0.1, 4.0, 0.1, "mdi:chart-bell-curve"),
             ),
             "number (circuit)",
         )
@@ -105,7 +119,10 @@ class TestDeviceInfoScopedByEntry:
     def test_number_mixer_variant(self):
         _assert_scoped_by_entry(
             lambda entry_id: PlumEcomaxNumber(
-                _coordinator(), SimpleNamespace(entry_id=entry_id), "mixer1valveopeningtime", (0, 100, 1, "mdi:valve")
+                _coordinator(),
+                SimpleNamespace(entry_id=entry_id),
+                "mixer1valveopeningtime",
+                (0, 100, 1, "mdi:valve"),
             ),
             "number (mixers)",
         )
@@ -121,8 +138,11 @@ class TestDeviceInfoScopedByEntry:
     def test_sensor_circuit_variant(self):
         _assert_scoped_by_entry(
             lambda entry_id: PlumEcomaxSensor(
-                _coordinator(), SimpleNamespace(entry_id=entry_id), "tempcircuit1",
-                ("°C", "mdi:thermometer", "temperature"), circuit_id=1,
+                _coordinator(),
+                SimpleNamespace(entry_id=entry_id),
+                "tempcircuit1",
+                ("°C", "mdi:thermometer", "temperature"),
+                circuit_id=1,
             ),
             "sensor (circuit)",
         )
@@ -130,7 +150,9 @@ class TestDeviceInfoScopedByEntry:
     def test_sensor_boiler_variant(self):
         _assert_scoped_by_entry(
             lambda entry_id: PlumEcomaxSensor(
-                _coordinator(), SimpleNamespace(entry_id=entry_id), "tempcwu",
+                _coordinator(),
+                SimpleNamespace(entry_id=entry_id),
+                "tempcwu",
                 ("°C", "mdi:thermometer", "temperature"),
             ),
             "sensor (boiler fallback)",
@@ -146,13 +168,17 @@ class TestDeviceInfoScopedByEntry:
 
     def test_calendar_hdw_variant(self):
         _assert_scoped_by_entry(
-            lambda entry_id: PlumEconetCalendar(_coordinator(), SimpleNamespace(entry_id=entry_id), "hdw", 0),
+            lambda entry_id: PlumEconetCalendar(
+                _coordinator(), SimpleNamespace(entry_id=entry_id), "hdw", 0
+            ),
             "calendar (HDW)",
         )
 
     def test_calendar_circuit_variant(self):
         _assert_scoped_by_entry(
-            lambda entry_id: PlumEconetCalendar(_coordinator(), SimpleNamespace(entry_id=entry_id), "circuit", 2),
+            lambda entry_id: PlumEconetCalendar(
+                _coordinator(), SimpleNamespace(entry_id=entry_id), "circuit", 2
+            ),
             "calendar (circuit)",
         )
 
@@ -169,12 +195,15 @@ class TestNumberRoutedToCorrectDeviceCategory:
 
     @staticmethod
     def _identifier_suffix(entity) -> str:
-        (_, identifier), = entity.device_info["identifiers"]
+        ((_, identifier),) = entity.device_info["identifiers"]
         return identifier.removeprefix(ENTRY_A)
 
     def test_circuit_slug_goes_to_its_circuit_device(self):
         entity = PlumEcomaxNumber(
-            _coordinator(), SimpleNamespace(entry_id=ENTRY_A), "circuit2curvefloor", (0.1, 4.0, 0.1, "mdi:x")
+            _coordinator(),
+            SimpleNamespace(entry_id=ENTRY_A),
+            "circuit2curvefloor",
+            (0.1, 4.0, 0.1, "mdi:x"),
         )
         assert self._identifier_suffix(entity) == "_circuit_2"
 
@@ -186,12 +215,18 @@ class TestNumberRoutedToCorrectDeviceCategory:
 
     def test_mixer_slug_goes_to_mixers_device(self):
         entity = PlumEcomaxNumber(
-            _coordinator(), SimpleNamespace(entry_id=ENTRY_A), "mixer2valveopeningtime", (0, 100, 1, "mdi:x")
+            _coordinator(),
+            SimpleNamespace(entry_id=ENTRY_A),
+            "mixer2valveopeningtime",
+            (0, 100, 1, "mdi:x"),
         )
         assert self._identifier_suffix(entity) == "_mixers"
 
     def test_unprefixed_slug_falls_back_to_boiler_device(self):
         entity = PlumEcomaxNumber(
-            _coordinator(), SimpleNamespace(entry_id=ENTRY_A), "buforlongloadtime", (0, 180, 1, "mdi:x")
+            _coordinator(),
+            SimpleNamespace(entry_id=ENTRY_A),
+            "buforlongloadtime",
+            (0, 180, 1, "mdi:x"),
         )
         assert self._identifier_suffix(entity) == ""  # bare entry_id, no suffix

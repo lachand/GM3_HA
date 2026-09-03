@@ -4,10 +4,13 @@ This module handles the configuration flow for setting up the integration
 via the Home Assistant UI. It allows the user to define the IP address,
 port, password, and active heating circuits.
 """
+
 import asyncio
 import logging
+
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     SelectSelector,
@@ -17,16 +20,16 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
     TextSelectorType,
 )
-from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD, CONF_USERNAME, CONF_PORT
+
 from .const import (
-    DOMAIN,
-    CONF_ACTIVE_CIRCUITS,
     CIRCUIT_CHOICES,
-    DEFAULT_PORT,
+    CONF_ACTIVE_CIRCUITS,
     CONF_UPDATE_INTERVAL,
-    UPDATE_INTERVAL,
-    MIN_UPDATE_INTERVAL,
+    DEFAULT_PORT,
+    DOMAIN,
     MAX_UPDATE_INTERVAL,
+    MIN_UPDATE_INTERVAL,
+    UPDATE_INTERVAL,
 )
 from .plum_device import PlumDevice
 
@@ -40,27 +43,33 @@ _PROBE_SLUG = "hdwstate"
 
 def _build_data_schema(defaults: dict) -> vol.Schema:
     """Builds the connection form schema, pre-filled from `defaults`."""
-    return vol.Schema({
-        vol.Required(CONF_IP_ADDRESS, default=defaults.get(CONF_IP_ADDRESS, "192.168.1.38")): str,
-        vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): int,
-        vol.Optional(CONF_USERNAME, default=defaults.get(CONF_USERNAME, "admin")): str,
-        vol.Required(CONF_PASSWORD, default=defaults.get(CONF_PASSWORD, "0000")): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.PASSWORD)
-        ),
-        vol.Required(
-            CONF_ACTIVE_CIRCUITS, default=defaults.get(CONF_ACTIVE_CIRCUITS, ["2"])
-        ): SelectSelector(
-            SelectSelectorConfig(
-                options=CIRCUIT_CHOICES,
-                mode=SelectSelectorMode.DROPDOWN,
-                multiple=True,
-                translation_key="circuits_selector"
-            )
-        ),
-        vol.Optional(
-            CONF_UPDATE_INTERVAL, default=defaults.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
-        ): vol.All(vol.Coerce(int), vol.Range(min=MIN_UPDATE_INTERVAL, max=MAX_UPDATE_INTERVAL)),
-    })
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_IP_ADDRESS, default=defaults.get(CONF_IP_ADDRESS, "192.168.1.38")
+            ): str,
+            vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Optional(CONF_USERNAME, default=defaults.get(CONF_USERNAME, "admin")): str,
+            vol.Required(CONF_PASSWORD, default=defaults.get(CONF_PASSWORD, "0000")): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
+            ),
+            vol.Required(
+                CONF_ACTIVE_CIRCUITS, default=defaults.get(CONF_ACTIVE_CIRCUITS, ["2"])
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=CIRCUIT_CHOICES,
+                    mode=SelectSelectorMode.DROPDOWN,
+                    multiple=True,
+                    translation_key="circuits_selector",
+                )
+            ),
+            vol.Optional(
+                CONF_UPDATE_INTERVAL, default=defaults.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
+            ): vol.All(
+                vol.Coerce(int), vol.Range(min=MIN_UPDATE_INTERVAL, max=MAX_UPDATE_INTERVAL)
+            ),
+        }
+    )
 
 
 async def _validate_connection(hass, user_input: dict) -> str | None:
@@ -109,6 +118,7 @@ class PlumConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     This class manages the sequence of steps to configure the integration.
     """
+
     VERSION = 1
 
     async def async_step_user(self, user_input=None):

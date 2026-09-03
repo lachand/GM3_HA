@@ -1,13 +1,13 @@
 """Unit tests for diagnostics.py -- redaction + the link-health fields
 added so a bug report carries what's actually needed to triage it.
 """
+
 from __future__ import annotations
 
 import time
 from unittest.mock import MagicMock
 
 import pytest
-
 from homeassistant.const import CONF_IP_ADDRESS, CONF_PASSWORD
 
 from custom_components.plum_ecomax.const import DOMAIN

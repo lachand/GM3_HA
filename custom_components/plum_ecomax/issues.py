@@ -8,6 +8,7 @@ call site is one line instead of repeating async_create_issue's full
 kwarg list, and the full set of issue types this integration can raise is
 discoverable from one place instead of scattered across platforms.
 """
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
