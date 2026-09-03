@@ -440,7 +440,7 @@
                 },
                 "comfort_blocks": {
                     "name": "Comfort blocks",
-                    "description": "List of {from, to} time ranges in comfort mode. Empty sets the whole day to eco."
+                    "description": "List of from/to time ranges that should be in comfort mode. An empty list sets the whole day to eco."
                 }
             }
         }

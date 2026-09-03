@@ -34,7 +34,7 @@ set_schedule:
     comfort_blocks:
       name: Comfort blocks
       description: >
-        List of {from, to} time ranges that should be in comfort mode. An
+        List of from/to time ranges that should be in comfort mode. An
         empty list sets the whole day to eco.
       required: false
       example: |

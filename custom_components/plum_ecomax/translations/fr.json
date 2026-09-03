@@ -440,7 +440,7 @@
                 },
                 "comfort_blocks": {
                     "name": "Blocs confort",
-                    "description": "Liste de plages {from, to} en mode confort. Vide met toute la journée en éco."
+                    "description": "Liste de plages horaires (from/to) en mode confort. Une liste vide met toute la journée en éco."
                 }
             }
         }
