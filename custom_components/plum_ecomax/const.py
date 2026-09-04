@@ -44,14 +44,92 @@ SOLAR_DUMP_FORCE_VALUE = 512
 SOLAR_DUMP_MAX_MINUTES = 120
 
 # DHW-temperature guard rails for the solar dump (service + the "DHW pump ->
-# Solar buffer" switch). Exposed as two RestoreNumber entities; the values
-# are mirrored onto the coordinator so solar_dump.py can read them. A dump
-# won't start below the start threshold, and stops once the DHW tank drops
-# to the stop threshold -- so it doesn't drain the tank too far.
+# Solar buffer" switch). Exposed as RestoreNumber entities; the values are
+# mirrored onto the coordinator so solar_dump.py can read them. A dump won't
+# start below the start threshold, and stops once the DHW tank drops to the
+# stop threshold -- so it doesn't drain the tank too far.
 SOLAR_DUMP_START_TEMP_DEFAULT = 50
 SOLAR_DUMP_STOP_TEMP_DEFAULT = 42
 SOLAR_DUMP_TEMP_MIN = 25
 SOLAR_DUMP_TEMP_MAX = 75
+
+# --- AUTOMATIC solar dump (differential-temperature controller) ---
+# A tick every AUTO_TICK_SECONDS while switch.solar_dump_auto is on: run the
+# transfer pump in bursts when the DHW tank is hotter than the buffer by
+# >= dt_start, stop when the gradient falls below AUTO_DT_STOP; charge hard
+# until the buffer reaches its target, then only skim big gradients
+# (dt_start * AUTO_DT_BALANCE_FACTOR) so both tanks drift up together with
+# minimal circulator time. Never drains the DHW tank below the auto floor.
+AUTO_TICK_SECONDS = 150
+AUTO_DT_STOP = 3
+AUTO_BUFFER_CEILING = 75
+AUTO_MIN_RUN_SECONDS = 300
+AUTO_MIN_REST_SECONDS = 720
+AUTO_DT_BALANCE_FACTOR = 2
+SOLAR_DUMP_BUFFER_TARGET_DEFAULT = 55
+SOLAR_DUMP_DT_START_DEFAULT = 8
+SOLAR_DUMP_DAILY_BUDGET_DEFAULT = 120
+SOLAR_DUMP_AUTO_FLOOR_DEFAULT = 45
+
+# All the solar-dump RestoreNumber entities, built from one loop in number.py.
+# key -> (default, min, max, step, unit, icon, coordinator attribute).
+# unit "C" = temperature, "K" = a temperature difference, "min" = minutes.
+SOLAR_DUMP_NUMBERS = {
+    "start_temp": (
+        SOLAR_DUMP_START_TEMP_DEFAULT,
+        SOLAR_DUMP_TEMP_MIN,
+        SOLAR_DUMP_TEMP_MAX,
+        1,
+        "C",
+        "mdi:thermometer-chevron-up",
+        "solar_dump_start_temp",
+    ),
+    "stop_temp": (
+        SOLAR_DUMP_STOP_TEMP_DEFAULT,
+        SOLAR_DUMP_TEMP_MIN,
+        SOLAR_DUMP_TEMP_MAX,
+        1,
+        "C",
+        "mdi:thermometer-chevron-down",
+        "solar_dump_stop_temp",
+    ),
+    "auto_ecs_floor": (
+        SOLAR_DUMP_AUTO_FLOOR_DEFAULT,
+        30,
+        70,
+        1,
+        "C",
+        "mdi:water-thermometer",
+        "solar_dump_auto_ecs_floor",
+    ),
+    "buffer_target": (
+        SOLAR_DUMP_BUFFER_TARGET_DEFAULT,
+        30,
+        80,
+        1,
+        "C",
+        "mdi:target",
+        "solar_dump_buffer_target",
+    ),
+    "dt_start": (
+        SOLAR_DUMP_DT_START_DEFAULT,
+        2,
+        25,
+        1,
+        "K",
+        "mdi:delta",
+        "solar_dump_dt_start",
+    ),
+    "daily_budget": (
+        SOLAR_DUMP_DAILY_BUDGET_DEFAULT,
+        0,
+        600,
+        10,
+        "min",
+        "mdi:timer-cog-outline",
+        "solar_dump_daily_budget",
+    ),
+}
 
 # --- CONFIGURATION SWITCH (ON/OFF) ---
 SWITCH_TYPES = {

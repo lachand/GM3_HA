@@ -18,7 +18,7 @@ This integration aims to support the primary functions of the ecoMAX controller:
 * **Monitoring:** Read current temperatures (feeder, boiler, outside, etc.), boiler status, and fuel consumption.
 * **Control:** Adjust target temperatures and operation modes, per-circuit heating curves, cooling setpoints, the DHW anti-legionella cycle, and the DHW circulation pump timing.
 * **Weekly schedule:** Read the comfort/eco weekly program per circuit and for DHW as a calendar, and rewrite it with the **`plum_ecomax.set_schedule`** service (target day(s), one or more comfort time ranges — everything else becomes eco).
-* **Manual mode & solar dump:** The **DHW pump → Solar buffer** switch enters manual mode, forces the DHW transfer pump, and (when turned off) stops it and leaves manual mode — so it actually does something, unlike a bare force parameter. The **`plum_ecomax.solar_to_buffer`** service does the same on a capped timer instead of a switch — used to bank solar-heated DHW into the buffer tanks ahead of a forecast overcast spell. A plain **Manual mode** switch (operating-mode register) is also exposed. All paths guarantee a return to automatic — on the timer, on reload, on HA shutdown.
+* **Manual mode & solar dump:** The **DHW pump → Solar buffer** switch enters manual mode, forces the DHW transfer pump, and (when turned off) stops it and leaves manual mode — so it actually does something, unlike a bare force parameter. The **`plum_ecomax.solar_to_buffer`** service does the same on a capped timer, and a **Solar dump automatic mode** switch runs it as a self-regulating differential-temperature controller (bank solar-heated DHW into the buffer tanks all summer, with circulator-runtime guard rails). A plain **Manual mode** switch (operating-mode register) is also exposed. All paths guarantee a return to automatic — on the timer, on reload, on HA shutdown. See *A note on "force" parameters* below.
 * **Sensors:** Binary sensors for pumps and fan status, plus the boiler's serial number (shown on the device page) and any circuit names configured on the physical panel.
 * **Diagnostics & alerts:** A "manual mode active" binary sensor, coarse alarm-bit indicators, "last communication" / "consecutive failures" link-health sensors, and repair issues in Settings → Repairs when an alarm is active, a write is rejected by the boiler, or the connection is lost.
 * **Reference values:** Buttons to save the current heating-curve/DHW configuration as a reference snapshot and restore it later.
@@ -41,6 +41,17 @@ That's why the **DHW pump → Solar buffer** switch and the `solar_to_buffer` se
 The `solar_to_buffer` service also takes optional `start_temp` / `stop_temp` to override them for a single call.
 
 While manual mode is on, the boiler's automatic regulation is disabled — the plain **Manual mode** switch is there if you want it directly, just remember to turn it back off.
+
+### Automatic mode
+
+The **Solar dump automatic mode** switch turns the manual transfer into a self-running **differential-temperature controller** — set it on in summer / shoulder season and leave it. It works in short **bursts** (enter manual mode → run the pump → back to automatic), so heating and the gas DHW backup keep working normally between bursts.
+
+Each tick (every 2.5 min) it compares the DHW tank (`tempcwu`) and the buffer (`tempbufordown`):
+
+* **Charge** (buffer below its target): start a burst when the DHW tank is hotter than the buffer by **ΔT to start** (default 8 K), stop the burst when the gap falls below 3 K.
+* **Balance** (buffer at/above its target): only burst on a gap of **2× ΔT-start** (16 K) — so once the buffer is charged, the pump only skims the big surpluses and both tanks drift up together.
+
+Guard rails: never pull the DHW tank below the **auto DHW floor** (default 45 °C); stop above a 75 °C buffer ceiling; a **circulator budget per day** (default 120 min, 0 = unlimited) hard-caps runtime; bursts are skipped during the anti-legionella hour; minimum 5 min run / 12 min rest stop the pump short-cycling. The **Solar dump circulator runtime today** sensor shows how much the pump has run — use it to tune the thresholds. All four knobs are number entities in the boiler's Configuration section.
 
 ### Example: dump solar heat to the buffer before an overcast day
 
@@ -92,6 +103,10 @@ Any of these can be changed later via **Reconfigure** on the integration card, w
 ## Development
 
 Unit and regression tests live in `tests/` (`pytest tests/`). CI runs them on a Python 3.13/3.14 matrix (matching the Home Assistant releases users actually run) alongside `ruff check` / `ruff format --check`, `hassfest`, and HACS validation. Minimum supported Home Assistant: **2025.2**. See `DP_INVENTORY.md` for the catalog of boiler parameters not yet exposed as entities.
+
+### Upgrading to 0.5.0
+
+Adds **Solar dump automatic mode** — a differential-temperature controller that runs the DHW → buffer transfer by itself (see *Automatic mode* above), plus its four Configuration number entities (auto DHW floor, buffer target, ΔT to start, circulator budget per day) and a **circulator runtime today** sensor. New entities + translations need a full HA restart to show. No breaking changes; the auto switch is off until you turn it on.
 
 ### Upgrading to 0.4.x
 

@@ -204,6 +204,9 @@
             },
             "circulationstate": {
                 "name": "DHW Circulation State (raw)"
+            },
+            "solar_dump_runtime_today": {
+                "name": "Solar dump circulator runtime today"
             }
         },
         "binary_sensor": {
@@ -385,6 +388,18 @@
             },
             "solar_dump_stop_temp": {
                 "name": "Solar dump stop temperature"
+            },
+            "solar_dump_auto_ecs_floor": {
+                "name": "Solar dump auto DHW floor"
+            },
+            "solar_dump_buffer_target": {
+                "name": "Solar dump buffer target"
+            },
+            "solar_dump_dt_start": {
+                "name": "Solar dump ΔT to start"
+            },
+            "solar_dump_daily_budget": {
+                "name": "Solar dump circulator budget per day"
             }
         },
         "switch": {
@@ -399,6 +414,9 @@
             },
             "operatingmode": {
                 "name": "Manual mode"
+            },
+            "solar_dump_auto": {
+                "name": "Solar dump automatic mode"
             }
         },
         "select": {

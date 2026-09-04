@@ -31,6 +31,10 @@ from .const import (
     SCHEDULE_TYPES,
     SELECT_TYPES,
     SENSOR_TYPES,
+    SOLAR_DUMP_AUTO_FLOOR_DEFAULT,
+    SOLAR_DUMP_BUFFER_TARGET_DEFAULT,
+    SOLAR_DUMP_DAILY_BUDGET_DEFAULT,
+    SOLAR_DUMP_DT_START_DEFAULT,
     SOLAR_DUMP_START_TEMP_DEFAULT,
     SOLAR_DUMP_STOP_TEMP_DEFAULT,
     STATIC_SLUGS,
@@ -114,12 +118,16 @@ class PlumDataUpdateCoordinator(DataUpdateCoordinator):
         self.entry_id = config_entry.entry_id
         self.available_slugs: list[str] = []
 
-        # DHW-temperature guard rails for solar_dump.py. Seeded with the
-        # defaults so a dump started before the number entities restore
-        # still has real thresholds; PlumSolarDumpThreshold (number.py)
-        # overwrites these on restore and on every user change.
+        # Solar-dump settings for solar_dump.py. Seeded with the defaults so
+        # a dump/burst started before the number entities restore still has
+        # real values; PlumSolarDumpNumber (number.py) overwrites these on
+        # restore and on every user change.
         self.solar_dump_start_temp: float = SOLAR_DUMP_START_TEMP_DEFAULT
         self.solar_dump_stop_temp: float = SOLAR_DUMP_STOP_TEMP_DEFAULT
+        self.solar_dump_auto_ecs_floor: float = SOLAR_DUMP_AUTO_FLOOR_DEFAULT
+        self.solar_dump_buffer_target: float = SOLAR_DUMP_BUFFER_TARGET_DEFAULT
+        self.solar_dump_dt_start: float = SOLAR_DUMP_DT_START_DEFAULT
+        self.solar_dump_daily_budget: float = SOLAR_DUMP_DAILY_BUDGET_DEFAULT
 
         # Cache System
         self._cache: dict[str, Any] = {}

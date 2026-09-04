@@ -17,12 +17,13 @@ from homeassistant.const import EntityCategory
 from custom_components.plum_ecomax.const import (
     CONF_ACTIVE_CIRCUITS,
     DOMAIN,
+    SOLAR_DUMP_NUMBERS,
     SOLAR_DUMP_START_TEMP_DEFAULT,
     SOLAR_DUMP_STOP_TEMP_DEFAULT,
 )
 from custom_components.plum_ecomax.number import (
     PlumEcomaxNumber,
-    PlumSolarDumpThreshold,
+    PlumSolarDumpNumber,
     async_setup_entry,
 )
 
@@ -128,55 +129,57 @@ class TestNewNumberRouting:
         assert slugs == {"circuit2maxsetpointcooling"}
 
 
-class TestSolarDumpThreshold:
-    """The HA-local start/stop DHW-temp guard rails for the solar dump."""
+class TestSolarDumpNumbers:
+    """The HA-local solar-dump settings (guard rails + auto-mode knobs),
+    all built from const.SOLAR_DUMP_NUMBERS."""
 
-    def _mk(self, kind):
+    def _mk(self, key):
         coordinator = MagicMock()
-        coordinator.solar_dump_start_temp = None
-        coordinator.solar_dump_stop_temp = None
         coordinator.data = {}
+        for _d, _mn, _mx, _s, _u, _i, attr in SOLAR_DUMP_NUMBERS.values():
+            setattr(coordinator, attr, None)
         entry = MagicMock()
         entry.entry_id = "e1"
-        return coordinator, PlumSolarDumpThreshold(coordinator, entry, kind)
+        return coordinator, PlumSolarDumpNumber(coordinator, entry, key)
 
     @pytest.mark.asyncio
-    async def test_setup_creates_both_thresholds(self):
+    async def test_setup_creates_every_number(self):
         hass, entry = _make_hass_and_entry({}, active_circuits=[])
         added = []
         await async_setup_entry(hass, entry, lambda e: added.extend(e))
-        kinds = {e._kind for e in added if isinstance(e, PlumSolarDumpThreshold)}
-        assert kinds == {"start", "stop"}
+        keys = {e._key for e in added if isinstance(e, PlumSolarDumpNumber)}
+        assert keys == set(SOLAR_DUMP_NUMBERS)
 
-    def test_defaults_and_config_category(self):
-        _c1, start = self._mk("start")
-        _c2, stop = self._mk("stop")
+    def test_defaults_config_category_unique_ids(self):
+        _c1, start = self._mk("start_temp")
+        _c2, stop = self._mk("stop_temp")
+        _c3, budget = self._mk("daily_budget")
         assert start.native_value == SOLAR_DUMP_START_TEMP_DEFAULT
         assert stop.native_value == SOLAR_DUMP_STOP_TEMP_DEFAULT
         assert start.entity_category == EntityCategory.CONFIG
-        assert "start" in start.unique_id and start.unique_id != stop.unique_id
+        assert len({start.unique_id, stop.unique_id, budget.unique_id}) == 3
+        # unchanged from the two-threshold version -> no entity-registry churn
+        assert start.unique_id.endswith("_number_solar_dump_start_temp")
 
     @pytest.mark.asyncio
     async def test_set_value_pushes_to_coordinator(self):
-        coordinator, entity = self._mk("start")
+        coordinator, entity = self._mk("buffer_target")
         entity.async_write_ha_state = MagicMock()
         await entity.async_set_native_value(58)
         assert entity.native_value == 58.0
-        assert coordinator.solar_dump_start_temp == 58.0
+        assert coordinator.solar_dump_buffer_target == 58.0
 
     @pytest.mark.asyncio
     async def test_restore_pushes_last_value_to_coordinator(self):
-        coordinator, entity = self._mk("stop")
+        coordinator, entity = self._mk("dt_start")
         last = MagicMock()
-        last.native_value = 39.0
+        last.native_value = 11.0
         entity.async_get_last_number_data = AsyncMock(return_value=last)
-        # RestoreNumber.async_added_to_hass touches hass internals -> stub the
-        # chain above us so only our override logic runs.
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
                 "homeassistant.helpers.restore_state.RestoreEntity.async_added_to_hass",
                 AsyncMock(),
             )
             await entity.async_added_to_hass()
-        assert entity.native_value == 39.0
-        assert coordinator.solar_dump_stop_temp == 39.0
+        assert entity.native_value == 11.0
+        assert coordinator.solar_dump_dt_start == 11.0

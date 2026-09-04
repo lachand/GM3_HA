@@ -19,6 +19,7 @@ from .plum_device import PlumDevice
 from .schedule import async_register_services as async_register_schedule_service
 from .schedule import async_unregister_services as async_unregister_schedule_service
 from .solar_dump import async_register_services as async_register_solar_dump_service
+from .solar_dump import async_stop_auto as async_stop_solar_dump_auto
 from .solar_dump import async_stop_for_entry as async_stop_solar_dump
 from .solar_dump import async_unregister_services as async_unregister_solar_dump_service
 
@@ -107,9 +108,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         bool: True if the entry was successfully unloaded.
     """
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        # Stop any in-flight solar_to_buffer run and let it write the boiler
-        # back to automatic BEFORE the socket below is closed -- otherwise
-        # the boiler could be left stuck in manual mode.
+        # Disarm the auto controller, then stop any in-flight solar_to_buffer
+        # run and let it write the boiler back to automatic BEFORE the socket
+        # below is closed -- otherwise the boiler could be left in manual mode.
+        await async_stop_solar_dump_auto(hass, entry.entry_id)
         await async_stop_solar_dump(hass, entry.entry_id)
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         # PlumDevice now keeps its TCP connection open across transactions

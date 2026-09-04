@@ -10,15 +10,21 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONFIG_SWITCHES, DOMAIN, SWITCH_TYPES
 from .device import boiler_device_info, hdw_device_info
-from .solar_dump import async_start_hold, async_stop_for_entry
+from .solar_dump import (
+    async_auto_disable,
+    async_auto_enable,
+    async_start_hold,
+    async_stop_for_entry,
+)
 
 HDW_SWITCHES = {"hdwstartoneloading", "hdwpumpforce", "hdwstartlegion"}
 
@@ -60,6 +66,7 @@ async def async_setup_entry(
         else:
             _LOGGER.debug("Switch '%s' not found in device map, skipping.", slug)
 
+    entities.append(PlumSolarDumpAutoSwitch(coordinator, entry.entry_id))
     async_add_entities(entities)
 
 
@@ -130,3 +137,44 @@ class PlumEconetSwitch(CoordinatorEntity, SwitchEntity):
             await async_stop_for_entry(self.coordinator.hass, self._entry_id)
             return
         await self.coordinator.async_set_value(self._slug, self._off_value)
+
+
+class PlumSolarDumpAutoSwitch(CoordinatorEntity, RestoreEntity, SwitchEntity):
+    """Automatic solar-dump mode: a dT controller that runs the transfer in
+    bursts (see solar_dump.py). HA-local state, persisted across restarts.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "solar_dump_auto"
+    _attr_icon = "mdi:sun-clock"
+
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._entry_id = entry_id
+        self._is_on = False
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_switch_solar_dump_auto"
+
+    @property
+    def device_info(self) -> DeviceInfo | None:
+        return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
+
+    @property
+    def is_on(self) -> bool:
+        return self._is_on
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state == STATE_ON:
+            self._is_on = True
+            await async_auto_enable(self.coordinator.hass, self.coordinator, self._entry_id)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self._is_on = True
+        self.async_write_ha_state()
+        await async_auto_enable(self.coordinator.hass, self.coordinator, self._entry_id)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self._is_on = False
+        self.async_write_ha_state()
+        await async_auto_disable(self.coordinator.hass, self._entry_id)

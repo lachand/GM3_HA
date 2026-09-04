@@ -15,7 +15,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.plum_ecomax.const import DOMAIN, SWITCH_TYPES
-from custom_components.plum_ecomax.switch import HDW_SWITCHES, PlumEconetSwitch, async_setup_entry
+from custom_components.plum_ecomax.switch import (
+    HDW_SWITCHES,
+    PlumEconetSwitch,
+    PlumSolarDumpAutoSwitch,
+    async_setup_entry,
+)
+
+
+def _param_switch_slugs(added):
+    return {e._slug for e in added if isinstance(e, PlumEconetSwitch)}
 
 
 def _make_coordinator(params_map: dict, data: dict):
@@ -37,8 +46,7 @@ async def test_async_setup_entry_only_creates_entities_present_in_device_map():
     added = []
     await async_setup_entry(hass, entry, lambda entities: added.extend(entities))
 
-    slugs = {e._slug for e in added}
-    assert slugs == {"hdwpumpforce"}
+    assert _param_switch_slugs(added) == {"hdwpumpforce"}
 
 
 @pytest.mark.asyncio
@@ -52,7 +60,9 @@ async def test_async_setup_entry_skips_slugs_not_in_device_map():
     added = []
     await async_setup_entry(hass, entry, lambda entities: added.extend(entities))
 
-    assert added == []
+    assert _param_switch_slugs(added) == set()
+    # the auto-mode switch is always created (no boiler param behind it)
+    assert any(isinstance(e, PlumSolarDumpAutoSwitch) for e in added)
 
 
 class TestIsOn:

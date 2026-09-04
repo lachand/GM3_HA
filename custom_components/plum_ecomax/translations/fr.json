@@ -204,6 +204,9 @@
             },
             "circulationstate": {
                 "name": "État circulation ECS (brut)"
+            },
+            "solar_dump_runtime_today": {
+                "name": "Décharge solaire — temps circulateur aujourd'hui"
             }
         },
         "binary_sensor": {
@@ -385,6 +388,18 @@
             },
             "solar_dump_stop_temp": {
                 "name": "Décharge solaire — température d'arrêt ECS"
+            },
+            "solar_dump_auto_ecs_floor": {
+                "name": "Décharge solaire — plancher ECS (auto)"
+            },
+            "solar_dump_buffer_target": {
+                "name": "Décharge solaire — consigne ballon tampon"
+            },
+            "solar_dump_dt_start": {
+                "name": "Décharge solaire — ΔT de démarrage"
+            },
+            "solar_dump_daily_budget": {
+                "name": "Décharge solaire — budget circulateur / jour"
             }
         },
         "switch": {
@@ -399,6 +414,9 @@
             },
             "operatingmode": {
                 "name": "Mode manuel"
+            },
+            "solar_dump_auto": {
+                "name": "Décharge solaire — mode automatique"
             }
         },
         "select": {

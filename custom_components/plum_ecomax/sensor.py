@@ -8,24 +8,27 @@ It also implements critical safety checks to handle 'NaN' (Not a Number)
 values that might be returned by the boiler during initialization or errors.
 """
 
+import contextlib
 import logging
 import math  # <--- CRITICAL: Import required for NaN checks
 import re
 from datetime import UTC, datetime
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_ACTIVE_CIRCUITS, DIAGNOSTIC_SENSOR_SLUGS, DOMAIN, SENSOR_TYPES
 from .device import boiler_device_info, circuit_device_info
+from .solar_dump import auto_runtime_minutes, auto_seed_runtime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +82,7 @@ async def async_setup_entry(
     # off the driver). See IMPROVEMENT_PLAN.md section C.
     entities.append(PlumLastCommunicationSensor(coordinator, entry.entry_id))
     entities.append(PlumConsecutiveFailuresSensor(coordinator, entry.entry_id))
+    entities.append(PlumSolarDumpRuntimeSensor(coordinator, entry.entry_id))
 
     if entities:
         async_add_entities(entities)
@@ -263,3 +267,38 @@ class PlumConsecutiveFailuresSensor(_PlumLinkHealthSensor):
     @property
     def native_value(self) -> int:
         return self.coordinator.device.consecutive_failures
+
+
+class PlumSolarDumpRuntimeSensor(CoordinatorEntity, RestoreSensor, SensorEntity):
+    """Minutes the transfer circulator has run today under the automatic
+    solar dump. Resets at midnight (handled by the controller); persisted so
+    a restart doesn't lose the day's total.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "solar_dump_runtime_today"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_icon = "mdi:timer-play-outline"
+
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._entry_id = entry_id
+        self._attr_unique_id = f"{DOMAIN}_{entry_id}_solar_dump_runtime_today"
+
+    @property
+    def device_info(self) -> dict:
+        return boiler_device_info(self._entry_id, self.coordinator.data.get("uid"))
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_sensor_data()
+        if last is not None and last.native_value is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                auto_seed_runtime(self._entry_id, float(last.native_value))
+
+    @property
+    def native_value(self) -> float:
+        return auto_runtime_minutes(self._entry_id)
